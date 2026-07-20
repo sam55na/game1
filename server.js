@@ -1,3355 +1,3033 @@
-// ============================================
-// 🚀 BATTLE TANKS ROYALE - الخادم النهائي الكامل
-// ============================================
-// Version: 12.0.0 - COMPLETE EDITION
-// جميع الميزات المطلوبة - جاهز للإنتاج الفوري
-// ============================================
+// ================================================================
+// 🚀 BATTLE TANKS ELITE v6.0 - خادم احترافي AAA
+// ================================================================
+// جميع الحقوق محفوظة © 2026 - النسخة النهائية للإنتاج
+// ================================================================
 
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const { Pool } = require('pg');
 const cors = require('cors');
-const crypto = require('crypto');
-const EventEmitter = require('events');
 const helmet = require('helmet');
-const morgan = require('morgan');
-const winston = require('winston');
-const jwt = require('jsonwebtoken');
-const rateLimit = require('express-rate-limit');
 const compression = require('compression');
+const rateLimit = require('express-rate-limit');
+const slowDown = require('express-slow-down');
+const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
-const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+const fs = require('fs');
+const EventEmitter = require('events');
 
-// ============================================
-// 📁 إنشاء مجلدات السجلات
-// ============================================
-const logsDir = path.join(__dirname, 'logs');
-if (!fs.existsSync(logsDir)) {
-    fs.mkdirSync(logsDir, { recursive: true });
-}
-
-// ============================================
-// 🛡️ معالجة الأخطاء غير المتوقعة
-// ============================================
-process.on('uncaughtException', (err) => {
-    console.error('❌ Uncaught Exception:', err.message);
-    console.error(err.stack);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-    console.error('❌ Unhandled Rejection:', reason);
-});
-
-// ============================================
+// ================================================================
 // 📝 نظام التسجيل المتقدم
-// ============================================
-class AdvancedLogger {
-    constructor() {
-        this.currentLevel = process.env.LOG_LEVEL || 'info';
-        this.loggers = {};
-        
-        const format = winston.format.combine(
-            winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-            winston.format.errors({ stack: true }),
-            winston.format.metadata(),
-            winston.format.json()
-        );
-        
-        this.mainLogger = winston.createLogger({
-            level: this.currentLevel,
-            format,
-            defaultMeta: {
-                service: 'battle-tanks-royale',
-                version: '12.0.0',
-                pid: process.pid
-            },
-            transports: [
-                new winston.transports.Console({
-                    format: winston.format.combine(
-                        winston.format.colorize(),
-                        winston.format.printf(({ timestamp, level, message, metadata }) => {
-                            const metaStr = metadata && Object.keys(metadata).length > 0 
-                                ? JSON.stringify(metadata) 
-                                : '';
-                            return `${timestamp} [${level}] ${message} ${metaStr}`;
-                        })
-                    )
-                }),
-                new winston.transports.File({
-                    filename: path.join(logsDir, 'error.log'),
-                    level: 'error',
-                    maxsize: 10485760,
-                    maxFiles: 10,
-                    tailable: true
-                }),
-                new winston.transports.File({
-                    filename: path.join(logsDir, 'combined.log'),
-                    maxsize: 10485760,
-                    maxFiles: 10,
-                    tailable: true
-                }),
-                new winston.transports.File({
-                    filename: path.join(logsDir, 'audit.log'),
-                    level: 'info',
-                    maxsize: 10485760,
-                    maxFiles: 5,
-                    tailable: true
-                })
-            ]
-        });
-        
-        console.log(`✅ Logger initialized (PID: ${process.pid})`);
-    }
-    
-    info(message, metadata = {}) {
-        this.mainLogger.info(message, { metadata });
-    }
-    
-    error(message, metadata = {}) {
-        this.mainLogger.error(message, { metadata });
-    }
-    
-    warn(message, metadata = {}) {
-        this.mainLogger.warn(message, { metadata });
-    }
-    
-    debug(message, metadata = {}) {
-        this.mainLogger.debug(message, { metadata });
-    }
-    
-    audit(action, userId, details = {}) {
-        this.mainLogger.info(`AUDIT: ${action}`, {
-            metadata: { userId, action, details, timestamp: new Date().toISOString() }
-        });
-    }
-}
+// ================================================================
+const winston = require('winston');
+const logger = winston.createLogger({
+    level: process.env.LOG_LEVEL || 'info',
+    format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.errors({ stack: true }),
+        winston.format.json()
+    ),
+    defaultMeta: { service: 'battle-tanks' },
+    transports: [
+        new winston.transports.File({ 
+            filename: 'logs/error.log', 
+            level: 'error', 
+            maxsize: 10485760, 
+            maxFiles: 5 
+        }),
+        new winston.transports.File({ 
+            filename: 'logs/combined.log', 
+            maxsize: 10485760, 
+            maxFiles: 5 
+        }),
+        new winston.transports.Console({
+            format: winston.format.combine(
+                winston.format.colorize(),
+                winston.format.simple()
+            )
+        })
+    ]
+});
 
-const logger = new AdvancedLogger();
+// ================================================================
+// 🗄️ اتصال PostgreSQL (Neon) مع SSL وإعادة محاولة متينة
+// ================================================================
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false },
+    max: 150,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000,
+    maxUses: 7500,
+    allowExitOnIdle: false,
+});
 
-// ============================================
-// 🔄 Circuit Breaker
-// ============================================
-class CircuitBreaker {
-    constructor(options = {}) {
-        this.failureThreshold = options.failureThreshold || 5;
-        this.timeout = options.timeout || 60000;
-        this.halfOpenTimeout = options.halfOpenTimeout || 30000;
-        this.failureCount = 0;
-        this.state = 'CLOSED';
-        this.lastFailureTime = null;
-        this.metrics = {
-            totalRequests: 0,
-            successfulRequests: 0,
-            failedRequests: 0,
-            rejectedRequests: 0
-        };
-    }
-    
-    async execute(action, fallback = null) {
-        this.metrics.totalRequests++;
-        
-        if (this.state === 'OPEN') {
-            this.metrics.rejectedRequests++;
-            if (Date.now() - this.lastFailureTime > this.timeout) {
-                this.state = 'HALF_OPEN';
-                logger.info('🔄 Circuit breaker: HALF_OPEN');
-            } else {
-                if (fallback) return fallback();
-                throw new Error('Circuit breaker is OPEN');
-            }
+// مراقبة الأخطاء وإعادة المحاولة الذكية
+let isReconnecting = false;
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 20;
+let reconnectTimer = null;
+
+pool.on('error', async (err) => {
+    logger.error('❌ PostgreSQL Pool Error:', err);
+    if (err.code === 'ECONNRESET' || err.code === 'PROTOCOL_CONNECTION_LOST' || 
+        err.code === 'ETIMEDOUT' || err.code === '57P01') {
+        if (!isReconnecting) {
+            await reconnectDatabase();
         }
-        
+    }
+});
+
+async function reconnectDatabase() {
+    if (isReconnecting) return;
+    isReconnecting = true;
+
+    try {
+        await pool.end();
+    } catch (e) {}
+
+    while (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+        reconnectAttempts++;
+        const delay = Math.min(1000 * Math.pow(1.5, reconnectAttempts), 30000);
+        logger.info(`🔄 Reconnect attempt ${reconnectAttempts} in ${delay}ms...`);
+
+        await new Promise(resolve => setTimeout(resolve, delay));
+
         try {
-            const result = await action();
-            if (this.state === 'HALF_OPEN') {
-                this.reset();
-                logger.info('✅ Circuit breaker: CLOSED');
-            }
-            this.metrics.successfulRequests++;
-            return result;
-        } catch (error) {
-            this.metrics.failedRequests++;
-            this.failureCount++;
-            this.lastFailureTime = Date.now();
-            
-            if (this.state === 'HALF_OPEN' || this.failureCount >= this.failureThreshold) {
-                this.state = 'OPEN';
-                logger.warn(`⚠️ Circuit breaker: OPEN (${this.failureCount} failures)`);
-            }
-            
-            if (fallback) return fallback();
-            throw error;
-        }
-    }
-    
-    reset() {
-        this.failureCount = 0;
-        this.state = 'CLOSED';
-        this.lastFailureTime = null;
-    }
-    
-    getStats() {
-        return {
-            state: this.state,
-            failureCount: this.failureCount,
-            ...this.metrics,
-            successRate: this.metrics.totalRequests > 0 
-                ? (this.metrics.successfulRequests / this.metrics.totalRequests * 100).toFixed(2) + '%'
-                : 'N/A'
-        };
-    }
-}
-
-// ============================================
-// 📊 نظام المراقبة المتقدم
-// ============================================
-class AdvancedMonitoring {
-    constructor() {
-        this.metrics = {
-            connections: { total: 0, active: 0, peak: 0, historical: [] },
-            requests: {
-                total: 0,
-                success: 0,
-                error: 0,
-                rate: 0,
-                byEndpoint: {},
-                byStatus: {},
-                byMethod: {},
-                responseTime: { avg: 0, max: 0, min: Infinity }
-            },
-            games: {
-                total: 0,
-                active: 0,
-                completed: 0,
-                averageDuration: 0,
-                maxPlayers: 0
-            },
-            errors: {
-                total: 0,
-                byType: {},
-                byService: {},
-                recent: [],
-                rate: 0
-            },
-            database: {
-                connected: false,
-                reconnectAttempts: 0,
-                lastError: null,
-                queryCount: 0,
-                avgQueryTime: 0
-            },
-            admin: { logins: 0, actions: 0, failedLogins: 0 },
-            system: {
-                cpu: 0,
-                memory: 0,
-                uptime: 0
-            },
-            business: {
-                totalUsers: 0,
-                activeUsers: 0,
-                totalBalance: 0,
-                totalKills: 0,
-                totalWins: 0
-            }
-        };
-        
-        this.startTime = Date.now();
-        this.requestTimestamps = [];
-        this.errorLogs = [];
-        this.maxErrorLogs = 100;
-        this.responseTimeBuffer = [];
-        this.maxBufferSize = 1000;
-        this.metricsInterval = null;
-        
-        this.startMetricsCollection();
-    }
-    
-    startMetricsCollection() {
-        this.metricsInterval = setInterval(() => {
-            this.collectSystemMetrics();
-            this.calculatePercentiles();
-        }, 30000);
-    }
-    
-    collectSystemMetrics() {
-        const mem = process.memoryUsage();
-        this.metrics.system.memory = mem.heapUsed / 1024 / 1024;
-        this.metrics.system.cpu = process.cpuUsage().user / 1000000;
-        this.metrics.system.uptime = Math.floor((Date.now() - this.startTime) / 1000);
-    }
-    
-    calculatePercentiles() {
-        if (this.responseTimeBuffer.length === 0) return;
-        const sorted = [...this.responseTimeBuffer].sort((a, b) => a - b);
-        const len = sorted.length;
-        if (len > 0) {
-            this.metrics.requests.responseTime.p95 = sorted[Math.floor(len * 0.95)] || 0;
-            this.metrics.requests.responseTime.p99 = sorted[Math.floor(len * 0.99)] || 0;
-        }
-    }
-    
-    recordConnection(type) {
-        if (type === 'connect') {
-            this.metrics.connections.active++;
-            this.metrics.connections.total++;
-            if (this.metrics.connections.active > this.metrics.connections.peak) {
-                this.metrics.connections.peak = this.metrics.connections.active;
-            }
-            this.metrics.connections.historical.push({
-                timestamp: Date.now(),
-                active: this.metrics.connections.active
-            });
-        } else {
-            this.metrics.connections.active = Math.max(0, this.metrics.connections.active - 1);
-        }
-    }
-    
-    recordRequest(success, duration, endpoint = 'unknown', method = 'GET', status = 200) {
-        this.metrics.requests.total++;
-        if (success) this.metrics.requests.success++;
-        else this.metrics.requests.error++;
-        
-        this.metrics.requests.byEndpoint[endpoint] = (this.metrics.requests.byEndpoint[endpoint] || 0) + 1;
-        this.metrics.requests.byStatus[status] = (this.metrics.requests.byStatus[status] || 0) + 1;
-        this.metrics.requests.byMethod[method] = (this.metrics.requests.byMethod[method] || 0) + 1;
-        
-        this.requestTimestamps.push(Date.now());
-        if (this.requestTimestamps.length > 1000) this.requestTimestamps.shift();
-        
-        const oneMinuteAgo = Date.now() - 60000;
-        const recentRequests = this.requestTimestamps.filter(t => t > oneMinuteAgo);
-        this.metrics.requests.rate = recentRequests.length / 60;
-        
-        if (duration) {
-            this.responseTimeBuffer.push(duration);
-            const avg = (this.metrics.requests.responseTime.avg * 0.9) + (duration * 0.1);
-            this.metrics.requests.responseTime.avg = Math.round(avg);
-            if (duration > this.metrics.requests.responseTime.max) {
-                this.metrics.requests.responseTime.max = Math.round(duration);
-            }
-            if (duration < this.metrics.requests.responseTime.min) {
-                this.metrics.requests.responseTime.min = Math.round(duration);
-            }
-        }
-    }
-    
-    recordError(errorType, errorDetails = null, service = 'unknown', userId = null) {
-        this.metrics.errors.total++;
-        this.metrics.errors.byType[errorType] = (this.metrics.errors.byType[errorType] || 0) + 1;
-        this.metrics.errors.byService[service] = (this.metrics.errors.byService[service] || 0) + 1;
-        
-        const errorLog = { type: errorType, timestamp: Date.now(), details: errorDetails, service, userId };
-        this.errorLogs.push(errorLog);
-        if (this.errorLogs.length > this.maxErrorLogs) this.errorLogs.shift();
-        
-        logger.error(`Error recorded: ${errorType}`, { errorType, errorDetails, service, userId });
-    }
-    
-    recordDatabaseStatus(connected, error = null) {
-        this.metrics.database.connected = connected;
-        if (error) {
-            this.metrics.database.lastError = error;
-            this.metrics.database.reconnectAttempts++;
-        } else {
-            this.metrics.database.reconnectAttempts = 0;
-            this.metrics.database.lastError = null;
-        }
-    }
-    
-    recordDatabaseQuery(duration) {
-        this.metrics.database.queryCount++;
-        this.metrics.database.avgQueryTime = (this.metrics.database.avgQueryTime * 0.9) + (duration * 0.1);
-    }
-    
-    recordAdminAction(type, userId = null) {
-        if (type === 'login') this.metrics.admin.logins++;
-        else if (type === 'login_failed') this.metrics.admin.failedLogins++;
-        else this.metrics.admin.actions++;
-        if (userId) logger.audit(type, userId);
-    }
-    
-    recordGameStarted(players) {
-        this.metrics.games.total++;
-        this.metrics.games.active++;
-        if (players > this.metrics.games.maxPlayers) this.metrics.games.maxPlayers = players;
-    }
-    
-    recordGameEnded(duration) {
-        this.metrics.games.active = Math.max(0, this.metrics.games.active - 1);
-        this.metrics.games.completed++;
-        this.metrics.games.averageDuration = (this.metrics.games.averageDuration * 0.9) + (duration * 0.1);
-    }
-    
-    getStats() {
-        const uptime = Math.floor((Date.now() - this.startTime) / 1000);
-        return {
-            ...this.metrics,
-            uptime,
-            uptimeFormatted: this.formatUptime(uptime),
-            errorLogs: this.errorLogs.slice(-10),
-            timestamp: new Date().toISOString()
-        };
-    }
-    
-    formatUptime(seconds) {
-        const days = Math.floor(seconds / 86400);
-        const hours = Math.floor((seconds % 86400) / 3600);
-        const minutes = Math.floor((seconds % 3600) / 60);
-        const secs = seconds % 60;
-        return `${days}d ${hours}h ${minutes}m ${secs}s`;
-    }
-    
-    getHealthStatus() {
-        return {
-            status: this.metrics.database.connected ? 'healthy' : 'degraded',
-            uptime: this.formatUptime(Math.floor((Date.now() - this.startTime) / 1000)),
-            connections: this.metrics.connections.active,
-            database: this.metrics.database,
-            errors: { total: this.metrics.errors.total, recent: this.errorLogs.slice(-5) },
-            system: this.metrics.system,
-            timestamp: new Date().toISOString()
-        };
-    }
-    
-    stop() {
-        if (this.metricsInterval) {
-            clearInterval(this.metricsInterval);
-            this.metricsInterval = null;
-        }
-    }
-}
-
-const monitoring = new AdvancedMonitoring();
-
-// ============================================
-// 🗄️ إدارة قاعدة البيانات المتقدمة
-// ============================================
-class AdvancedDatabaseManager {
-    constructor() {
-        this.pool = null;
-        this.isConnected = false;
-        this.reconnectAttempts = 0;
-        this.maxReconnectAttempts = Infinity;
-        this.reconnectDelay = 5000;
-        this.maxReconnectDelay = 60000;
-        this.reconnectTimer = null;
-        this.isReconnecting = false;
-        this.connectionString = process.env.DATABASE_URL;
-        this.lastError = null;
-        this.pingInterval = null;
-        this.circuitBreaker = new CircuitBreaker({
-            failureThreshold: 3,
-            timeout: 30000,
-            halfOpenTimeout: 10000
-        });
-        this.poolConfig = {
-            max: parseInt(process.env.DB_POOL_MAX) || 20,
-            idleTimeoutMillis: 30000,
-            connectionTimeoutMillis: 15000,
-            maxUses: 7500
-        };
-        this.preparedStatements = new Map();
-        
-        if (!this.connectionString) {
-            logger.error('DATABASE_URL is not set, using default');
-            this.connectionString = 'postgresql://neondb_owner:npg_MSOwr97htVJu@ep-patient-dawn-awed2uh0-pooler.c-12.us-east-1.aws.neon.tech/neondb?sslmode=require';
-        }
-        
-        logger.info('Advanced Database Manager initialized');
-    }
-    
-    async connect() {
-        if (this.isReconnecting) {
-            return new Promise((resolve) => {
-                const checkInterval = setInterval(() => {
-                    if (!this.isReconnecting) {
-                        clearInterval(checkInterval);
-                        resolve(this.pool);
-                    }
-                }, 500);
-            });
-        }
-        
-        try {
-            logger.info(`Connecting to database (attempt ${this.reconnectAttempts + 1})...`);
-            
-            this.pool = new Pool({
-                connectionString: this.connectionString,
+            const newPool = new Pool({
+                connectionString: process.env.DATABASE_URL,
                 ssl: { rejectUnauthorized: false },
-                ...this.poolConfig
+                max: 150,
+                idleTimeoutMillis: 30000,
+                connectionTimeoutMillis: 10000,
+                maxUses: 7500,
             });
-            
-            this.pool.on('error', (err) => {
-                logger.error('Database pool error:', { error: err.message });
-                this.isConnected = false;
-                monitoring.recordDatabaseStatus(false, err.message);
-                this.handleReconnect();
-            });
-            
-            const startTime = Date.now();
-            await this.circuitBreaker.execute(async () => {
-                const client = await this.pool.connect();
-                await client.query('SELECT 1');
-                client.release();
-            });
-            const duration = Date.now() - startTime;
-            
-            this.isConnected = true;
-            this.reconnectAttempts = 0;
-            this.isReconnecting = false;
-            this.reconnectDelay = 5000;
-            this.lastError = null;
-            monitoring.recordDatabaseStatus(true);
-            monitoring.recordDatabaseQuery(duration);
-            
-            await this.initializeSchema();
-            
-            if (this.pingInterval) clearInterval(this.pingInterval);
-            this.pingInterval = setInterval(() => this.healthCheck(), 15000);
-            
-            logger.info('✅ Database connected successfully');
-            return this.pool;
-            
+
+            await newPool.query('SELECT 1');
+            Object.assign(pool, newPool);
+            logger.info('✅ Database reconnected successfully!');
+            reconnectAttempts = 0;
+            isReconnecting = false;
+            return;
         } catch (error) {
-            logger.error('Database connection failed:', { error: error.message });
-            this.isConnected = false;
-            this.isReconnecting = false;
-            this.lastError = error.message;
-            monitoring.recordDatabaseStatus(false, error.message);
-            monitoring.recordError('database_connection_error', error.message, 'database');
-            return this.handleReconnect();
+            logger.error(`❌ Reconnect attempt ${reconnectAttempts} failed:`, error.message);
         }
     }
-    
-    async initializeSchema() {
-        try {
-            const schema = `
-                CREATE TABLE IF NOT EXISTS users (
-                    id VARCHAR(64) PRIMARY KEY,
-                    telegram_id VARCHAR(64) UNIQUE,
-                    username VARCHAR(100),
-                    balance INTEGER DEFAULT 100,
-                    elo INTEGER DEFAULT 1000,
-                    kills INTEGER DEFAULT 0,
-                    wins INTEGER DEFAULT 0,
-                    games_played INTEGER DEFAULT 0,
-                    total_rewards INTEGER DEFAULT 0,
-                    is_admin BOOLEAN DEFAULT FALSE,
-                    is_banned BOOLEAN DEFAULT FALSE,
-                    ban_reason TEXT,
-                    banned_until TIMESTAMP,
-                    banned_by VARCHAR(64),
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    last_login TIMESTAMP,
-                    last_game TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                );
-                
-                CREATE TABLE IF NOT EXISTS rooms (
-                    id VARCHAR(64) PRIMARY KEY,
-                    type VARCHAR(32),
-                    name VARCHAR(100),
-                    max_seats INTEGER DEFAULT 8,
-                    seat_price INTEGER DEFAULT 1,
-                    reward_multiplier FLOAT DEFAULT 1.0,
-                    status VARCHAR(32) DEFAULT 'waiting',
-                    players JSONB DEFAULT '[]',
-                    spectators JSONB DEFAULT '[]',
-                    game_round INTEGER DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    stats JSONB DEFAULT '{}'
-                );
-                
-                CREATE TABLE IF NOT EXISTS matches (
-                    id VARCHAR(64) PRIMARY KEY,
-                    room_id VARCHAR(64),
-                    winner_id VARCHAR(64),
-                    players JSONB,
-                    kill_feed JSONB,
-                    start_time TIMESTAMP,
-                    end_time TIMESTAMP,
-                    duration INTEGER,
-                    total_players INTEGER,
-                    game_round INTEGER,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                );
-                
-                CREATE TABLE IF NOT EXISTS server_config (
-                    key VARCHAR(64) PRIMARY KEY,
-                    value JSONB,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                );
-                
-                CREATE TABLE IF NOT EXISTS visual_settings (
-                    id VARCHAR(64) PRIMARY KEY,
-                    event_key VARCHAR(64) UNIQUE,
-                    image_url TEXT,
-                    alt_text VARCHAR(255),
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                );
-                
-                CREATE TABLE IF NOT EXISTS transactions (
-                    id VARCHAR(64) PRIMARY KEY,
-                    user_id VARCHAR(64),
-                    type VARCHAR(32),
-                    amount INTEGER,
-                    balance_before INTEGER,
-                    balance_after INTEGER,
-                    description TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                );
-                
-                CREATE INDEX IF NOT EXISTS idx_users_elo ON users(elo DESC);
-                CREATE INDEX IF NOT EXISTS idx_users_wins ON users(wins DESC);
-                CREATE INDEX IF NOT EXISTS idx_users_kills ON users(kills DESC);
-                CREATE INDEX IF NOT EXISTS idx_matches_room ON matches(room_id);
-                CREATE INDEX IF NOT EXISTS idx_matches_winner ON matches(winner_id);
-                CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id);
-                CREATE INDEX IF NOT EXISTS idx_transactions_created ON transactions(created_at DESC);
-            `;
-            
-            await this.query(schema);
-            logger.info('✅ Database schema initialized');
-        } catch (error) {
-            logger.error('Error initializing schema:', { error: error.message });
-            throw error;
-        }
-    }
-    
-    async healthCheck() {
-        try {
-            const startTime = Date.now();
-            await this.circuitBreaker.execute(async () => {
-                if (this.pool) {
-                    const client = await this.pool.connect();
-                    await client.query('SELECT 1');
-                    client.release();
-                }
-            });
-            const duration = Date.now() - startTime;
-            
-            if (!this.isConnected) {
-                logger.info('Database health check: recovered');
-                this.isConnected = true;
-                monitoring.recordDatabaseStatus(true);
-            }
-            monitoring.recordDatabaseQuery(duration);
-        } catch (error) {
-            if (this.isConnected) {
-                logger.error('Database health check failed:', { error: error.message });
-                this.isConnected = false;
-                monitoring.recordDatabaseStatus(false, error.message);
-                monitoring.recordError('health_check_failed', error.message, 'database');
-                this.handleReconnect();
-            }
-        }
-    }
-    
-    async handleReconnect() {
-        if (this.isReconnecting) return this.pool;
-        
-        this.isReconnecting = true;
-        this.reconnectAttempts++;
-        
-        const delay = Math.min(
-            this.reconnectDelay * Math.pow(1.5, this.reconnectAttempts - 1),
-            this.maxReconnectDelay
+
+    logger.error('❌ Max reconnect attempts reached. Server will continue but database operations may fail.');
+    isReconnecting = false;
+}
+
+// ================================================================
+// 📋 إنشاء قاعدة البيانات والجداول تلقائياً
+// ================================================================
+async function initializeDatabase() {
+    logger.info('📋 Initializing database schema...');
+
+    const queries = [
+        // ============================================================
+        // تمكين التوسعات
+        // ============================================================
+        `CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`,
+        `CREATE EXTENSION IF NOT EXISTS "pgcrypto";`,
+
+        // ============================================================
+        // جدول المستخدمين (مع كل الحقول المطلوبة)
+        // ============================================================
+        `
+        CREATE TABLE IF NOT EXISTS users (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            telegram_id BIGINT UNIQUE NOT NULL,
+            telegram_username VARCHAR(255),
+            username VARCHAR(255) UNIQUE,
+            email VARCHAR(255) UNIQUE,
+            password_hash VARCHAR(255),
+            balance INTEGER DEFAULT 100 NOT NULL CHECK (balance >= 0),
+            is_admin BOOLEAN DEFAULT FALSE,
+            is_banned BOOLEAN DEFAULT FALSE,
+            is_verified BOOLEAN DEFAULT FALSE,
+            verification_code VARCHAR(6),
+            games_played INTEGER DEFAULT 0,
+            wins INTEGER DEFAULT 0,
+            losses INTEGER DEFAULT 0,
+            total_kills INTEGER DEFAULT 0,
+            total_deaths INTEGER DEFAULT 0,
+            longest_streak INTEGER DEFAULT 0,
+            current_streak INTEGER DEFAULT 0,
+            total_damage_dealt INTEGER DEFAULT 0,
+            total_damage_taken INTEGER DEFAULT 0,
+            accuracy FLOAT DEFAULT 0,
+            favorite_team INTEGER DEFAULT 1,
+            favorite_map VARCHAR(50),
+            total_playtime INTEGER DEFAULT 0,
+            last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_ip INET,
+            last_seen_room VARCHAR(50),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            deleted_at TIMESTAMP
         );
-        
-        logger.warn(`Reconnecting in ${Math.round(delay/1000)}s...`);
-        
-        return new Promise((resolve) => {
-            if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-            this.reconnectTimer = setTimeout(async () => {
-                try {
-                    await this.connect();
-                    resolve(this.pool);
-                } catch (error) {
-                    logger.error(`Reconnection failed:`, { error: error.message });
-                    this.isReconnecting = false;
-                    this.handleReconnect().then(resolve);
-                }
-            }, delay);
-        });
-    }
-    
-    async query(text, params) {
-        if (!this.isConnected || !this.pool) {
-            await this.connect();
-        }
-        
-        const startTime = Date.now();
-        try {
-            const result = await this.circuitBreaker.execute(async () => {
-                return await this.pool.query(text, params);
-            });
-            
-            const duration = Date.now() - startTime;
-            monitoring.recordDatabaseQuery(duration);
-            
-            if (duration > 1000) {
-                logger.warn('Slow query detected:', { query: text.substring(0, 100), duration });
-            }
-            
-            return result;
-        } catch (error) {
-            logger.error('Database query error:', { error: error.message, query: text.substring(0, 100) });
-            
-            if (error.code === 'ECONNRESET' || error.code === '57P01' || error.code === '08003' ||
-                error.code === '08006' || error.message.includes('connection')) {
-                this.isConnected = false;
-                monitoring.recordDatabaseStatus(false, error.message);
-                await this.connect();
-                return await this.pool.query(text, params);
-            }
-            
-            monitoring.recordError('query_error', error.message, 'database');
-            throw error;
-        }
-    }
-    
-    async transaction(callback) {
-        if (!this.isConnected || !this.pool) await this.connect();
-        
-        const client = await this.pool.connect();
-        try {
-            await client.query('BEGIN');
-            const result = await callback(client);
-            await client.query('COMMIT');
-            return result;
-        } catch (error) {
-            await client.query('ROLLBACK');
-            logger.error('Transaction error:', { error: error.message });
-            monitoring.recordError('transaction_error', error.message, 'database');
-            throw error;
-        } finally {
-            client.release();
-        }
-    }
-    
-    getHealth() {
-        return {
-            connected: this.isConnected,
-            reconnectAttempts: this.reconnectAttempts,
-            poolSize: this.pool ? this.pool.totalCount : 0,
-            idleCount: this.pool ? this.pool.idleCount : 0,
-            waitingCount: this.pool ? this.pool.waitingCount : 0,
-            lastError: this.lastError,
-            circuitBreaker: {
-                state: this.circuitBreaker.state,
-                failureCount: this.circuitBreaker.failureCount
-            }
-        };
-    }
-    
-    async shutdown() {
-        if (this.pingInterval) clearInterval(this.pingInterval);
-        if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-        if (this.pool) await this.pool.end();
-        logger.info('Database pool closed');
-    }
-}
+        `,
 
-const db = new AdvancedDatabaseManager();
-
-// ============================================
-// 🔒 نظام القفل الموزع
-// ============================================
-class DistributedLock {
-    constructor() {
-        this.locks = new Map();
-        this.waitingQueues = new Map();
-        this.lockTimeouts = new Map();
-        this.maxLockTime = 30000;
-        this.cleanupInterval = setInterval(() => this.cleanup(), 60000);
-        this.metrics = {
-            totalLocks: 0,
-            activeLocks: 0,
-            totalWaits: 0,
-            avgWaitTime: 0,
-            lockTimeouts: 0
-        };
-        logger.info('Distributed Lock initialized');
-    }
-    
-    async acquireLock(resourceId, userId, timeout = 10000) {
-        const lockKey = `lock:${resourceId}`;
-        const startTime = Date.now();
-        this.metrics.totalLocks++;
-        
-        return new Promise((resolve, reject) => {
-            if (this.locks.has(lockKey)) {
-                if (!this.waitingQueues.has(lockKey)) {
-                    this.waitingQueues.set(lockKey, []);
-                }
-                
-                const queue = this.waitingQueues.get(lockKey);
-                const timeoutId = setTimeout(() => {
-                    const index = queue.findIndex(item => item.userId === userId);
-                    if (index !== -1) {
-                        queue.splice(index, 1);
-                        this.metrics.totalWaits++;
-                        reject(new Error('Lock acquisition timeout'));
-                    }
-                }, timeout);
-                
-                const startWait = Date.now();
-                queue.push({ userId, resolve, reject, timeoutId, startWait });
-                return;
-            }
-            
-            this.grantLock(lockKey, userId, resolve);
-        });
-    }
-    
-    grantLock(lockKey, userId, resolve) {
-        this.locks.set(lockKey, {
-            userId,
-            acquiredAt: Date.now(),
-            expiresAt: Date.now() + this.maxLockTime
-        });
-        this.metrics.activeLocks++;
-        
-        const timeoutId = setTimeout(() => {
-            logger.warn(`Lock for ${lockKey} expired automatically`);
-            this.releaseLock(lockKey);
-            this.metrics.lockTimeouts++;
-        }, this.maxLockTime);
-        
-        this.lockTimeouts.set(lockKey, timeoutId);
-        resolve(true);
-    }
-    
-    releaseLock(lockKey) {
-        if (!this.locks.has(lockKey)) return false;
-        
-        this.locks.delete(lockKey);
-        this.metrics.activeLocks = Math.max(0, this.metrics.activeLocks - 1);
-        
-        if (this.lockTimeouts.has(lockKey)) {
-            clearTimeout(this.lockTimeouts.get(lockKey));
-            this.lockTimeouts.delete(lockKey);
-        }
-        
-        if (this.waitingQueues.has(lockKey)) {
-            const queue = this.waitingQueues.get(lockKey);
-            if (queue.length > 0) {
-                const next = queue.shift();
-                clearTimeout(next.timeoutId);
-                const waitTime = Date.now() - next.startWait;
-                this.metrics.avgWaitTime = (this.metrics.avgWaitTime * 0.9) + (waitTime * 0.1);
-                this.grantLock(lockKey, next.userId, next.resolve);
-            } else {
-                this.waitingQueues.delete(lockKey);
-            }
-        }
-        
-        return true;
-    }
-    
-    cleanup() {
-        const now = Date.now();
-        for (const [key, lock] of this.locks) {
-            if (lock.expiresAt < now) {
-                logger.warn(`Cleaning up expired lock: ${key}`);
-                this.releaseLock(key);
-                this.metrics.lockTimeouts++;
-            }
-        }
-    }
-    
-    getStats() {
-        return {
-            activeLocks: this.metrics.activeLocks,
-            waitingQueues: this.waitingQueues.size,
-            totalWaiting: Array.from(this.waitingQueues.values()).reduce((sum, q) => sum + q.length, 0),
-            ...this.metrics
-        };
-    }
-    
-    shutdown() {
-        if (this.cleanupInterval) clearInterval(this.cleanupInterval);
-    }
-}
-
-const lockSystem = new DistributedLock();
-
-// ============================================
-// 🛡️ نظام الحماية المتقدم
-// ============================================
-class AntiCheatSystem {
-    constructor() {
-        this.actionTracker = new Map();
-        this.rateLimits = {
-            move: { max: 60, window: 1000, blockTime: 5000, penalty: 1 },
-            shoot: { max: 5, window: 3000, blockTime: 10000, penalty: 2 },
-            join: { max: 5, window: 10000, blockTime: 30000, penalty: 1 },
-            auth: { max: 5, window: 5000, blockTime: 60000, penalty: 3 },
-            admin: { max: 10, window: 60000, blockTime: 300000, penalty: 2 }
-        };
-        
-        this.suspiciousActivity = new Map();
-        this.bannedUsers = new Set();
-        this.bannedIPs = new Set();
-        this.enabled = process.env.ANTI_CHEAT_ENABLED !== 'false';
-        this.adminPassword = process.env.ADMIN_PASSWORD || 'Admin@2024#Battle';
-        this.banDuration = 24 * 60 * 60 * 1000;
-        this.bannedCache = new Map();
-        this.cacheTTL = 60000;
-        this.blockedUntil = new Map();
-        this.threatScores = new Map();
-        
-        logger.info('AntiCheat System initialized', { enabled: this.enabled });
-    }
-    
-    checkRateLimit(userId, actionType, ip = null) {
-        if (!this.enabled) return true;
-        if (this.bannedUsers.has(userId) || (ip && this.bannedIPs.has(ip))) return false;
-        
-        const now = Date.now();
-        const limit = this.rateLimits[actionType];
-        if (!limit) return true;
-        
-        const key = `${userId}:${actionType}`;
-        if (this.blockedUntil.has(key) && this.blockedUntil.get(key) > now) {
-            return false;
-        }
-        
-        if (!this.actionTracker.has(key)) {
-            this.actionTracker.set(key, { actions: [], lastReset: now, penalties: 0 });
-        }
-        
-        const tracker = this.actionTracker.get(key);
-        if (now - tracker.lastReset > limit.window) {
-            tracker.actions = [];
-            tracker.lastReset = now;
-            tracker.penalties = Math.max(0, tracker.penalties - 1);
-        }
-        
-        tracker.actions.push(now);
-        tracker.actions = tracker.actions.filter(t => now - t < limit.window);
-        
-        const effectiveMax = limit.max - (tracker.penalties * limit.penalty);
-        if (tracker.actions.length > effectiveMax) {
-            const blockTime = limit.blockTime * (1 + tracker.penalties * 0.5);
-            this.blockedUntil.set(key, now + blockTime);
-            tracker.penalties++;
-            this.reportSuspiciousActivity(userId, `Rate limit exceeded: ${actionType}`);
-            return false;
-        }
-        
-        return true;
-    }
-    
-    reportSuspiciousActivity(userId, reason, ip = null) {
-        if (!this.suspiciousActivity.has(userId)) {
-            this.suspiciousActivity.set(userId, {
-                reports: [],
-                warnings: 0,
-                lastReport: Date.now(),
-                severity: 0,
-                firstSeen: Date.now()
-            });
-        }
-        
-        const activity = this.suspiciousActivity.get(userId);
-        const severity = this.calculateSeverity(reason);
-        
-        activity.reports.push({ reason, timestamp: Date.now(), severity, ip });
-        activity.warnings++;
-        activity.severity += severity;
-        activity.lastReport = Date.now();
-        
-        this.updateThreatScore(userId, severity);
-        
-        const threatScore = this.threatScores.get(userId) || 0;
-        if (threatScore >= 50) {
-            this.banUser(userId, 'نشاط مشبوه خطير (تلقائي)', ip);
-            return true;
-        } else if (threatScore >= 30) {
-            this.blockedUntil.set(`temp_${userId}`, Date.now() + 600000);
-            return true;
-        }
-        
-        return false;
-    }
-    
-    calculateSeverity(reason) {
-        if (reason.includes('aimbot') || reason.includes('godmode')) return 5;
-        if (reason.includes('speedhack') || reason.includes('teleport')) return 4;
-        if (reason.includes('spam') || reason.includes('flood')) return 2;
-        return 1;
-    }
-    
-    updateThreatScore(userId, severity) {
-        const current = this.threatScores.get(userId) || 0;
-        const newScore = current * 0.9 + severity * 2;
-        this.threatScores.set(userId, Math.min(100, newScore));
-    }
-    
-    async banUser(userId, reason, ip = null) {
-        if (this.bannedUsers.has(userId)) return;
-        
-        this.bannedUsers.add(userId);
-        if (ip) this.bannedIPs.add(ip);
-        this.bannedCache.set(userId, { reason, timestamp: Date.now() });
-        this.threatScores.delete(userId);
-        
-        logger.warn(`User banned: ${userId} - ${reason}`, { userId, reason, ip });
-        
-        try {
-            await db.query(
-                `UPDATE users SET is_banned = TRUE, ban_reason = $1, banned_until = $2, banned_by = 'system'
-                 WHERE id = $3`,
-                [reason, new Date(Date.now() + this.banDuration), userId]
-            );
-        } catch (error) {
-            logger.error('Error banning user:', { error: error.message, userId });
-        }
-    }
-    
-    async isUserBanned(userId) {
-        if (this.bannedUsers.has(userId)) return true;
-        if (this.bannedCache.has(userId)) {
-            const cached = this.bannedCache.get(userId);
-            if (Date.now() - cached.timestamp < this.cacheTTL) return true;
-            this.bannedCache.delete(userId);
-        }
-        
-        try {
-            const result = await db.query('SELECT is_banned, banned_until FROM users WHERE id = $1', [userId]);
-            if (result.rows.length > 0) {
-                const user = result.rows[0];
-                if (user.is_banned && user.banned_until && new Date(user.banned_until) > new Date()) {
-                    this.bannedUsers.add(userId);
-                    this.bannedCache.set(userId, { reason: 'Banned until ' + user.banned_until, timestamp: Date.now() });
-                    return true;
-                }
-            }
-        } catch (error) {
-            logger.error('Error checking ban status:', { error: error.message, userId });
-        }
-        return false;
-    }
-    
-    verifyAdminPassword(password) {
-        return password === this.adminPassword;
-    }
-    
-    getStats() {
-        return {
-            bannedUsers: this.bannedUsers.size,
-            bannedIPs: this.bannedIPs.size,
-            suspiciousActivities: this.suspiciousActivity.size,
-            activeTrackers: this.actionTracker.size,
-            enabled: this.enabled,
-            blocked: this.blockedUntil.size,
-            threatScores: Array.from(this.threatScores.entries()).slice(0, 20)
-        };
-    }
-    
-    async unbanUser(userId) {
-        this.bannedUsers.delete(userId);
-        this.bannedCache.delete(userId);
-        this.threatScores.delete(userId);
-        
-        try {
-            await db.query(`UPDATE users SET is_banned = FALSE, ban_reason = NULL, banned_until = NULL WHERE id = $1`, [userId]);
-            logger.info(`User unbanned: ${userId}`);
-            return true;
-        } catch (error) {
-            logger.error('Error unbanning user:', { error: error.message, userId });
-            return false;
-        }
-    }
-}
-
-const antiCheat = new AntiCheatSystem();
-
-// ============================================
-// 📦 التخزين المؤقت المتقدم
-// ============================================
-class CacheManager {
-    constructor() {
-        this.caches = {
-            memory: new Map(),
-            user: new Map(),
-            leaderboard: new Map(),
-            visual: new Map(),
-            config: new Map(),
-            game: new Map(),
-            session: new Map()
-        };
-        
-        this.ttls = {
-            memory: 30000,
-            user: 60000,
-            leaderboard: 30000,
-            visual: 300000,
-            config: 600000,
-            game: 10000,
-            session: 1800000
-        };
-        
-        this.cacheHits = 0;
-        this.cacheMisses = 0;
-        this.cacheSize = 0;
-        this.evictions = 0;
-        this.maxCacheSize = 10000;
-        this.cleanupInterval = setInterval(() => this.cleanup(), 60000);
-        
-        logger.info('Cache Manager initialized');
-    }
-    
-    async get(key, cacheType = 'memory') {
-        this.cacheSize = this.getTotalSize();
-        const cache = this.caches[cacheType];
-        if (!cache) return null;
-        
-        const entry = cache.get(key);
-        if (!entry) {
-            this.cacheMisses++;
-            return null;
-        }
-        
-        if (Date.now() - entry.timestamp > (entry.ttl || this.ttls[cacheType] || 60000)) {
-            cache.delete(key);
-            this.evictions++;
-            this.cacheMisses++;
-            return null;
-        }
-        
-        this.cacheHits++;
-        return entry.value;
-    }
-    
-    async set(key, value, cacheType = 'memory', ttl = null) {
-        const ttlMs = ttl || this.ttls[cacheType] || 60000;
-        const cache = this.caches[cacheType];
-        if (!cache) return false;
-        
-        if (this.cacheSize >= this.maxCacheSize) this.evictOldest();
-        
-        cache.set(key, { value, timestamp: Date.now(), ttl: ttlMs });
-        this.cacheSize = this.getTotalSize();
-        return true;
-    }
-    
-    async delete(key, cacheType = 'memory') {
-        const cache = this.caches[cacheType];
-        if (cache) {
-            cache.delete(key);
-            this.cacheSize = this.getTotalSize();
-        }
-    }
-    
-    evictOldest() {
-        let oldest = null;
-        let oldestTime = Infinity;
-        
-        for (const [type, cache] of Object.entries(this.caches)) {
-            for (const [key, entry] of cache) {
-                if (entry.timestamp < oldestTime) {
-                    oldestTime = entry.timestamp;
-                    oldest = { type, key };
-                }
-            }
-        }
-        
-        if (oldest) {
-            this.caches[oldest.type].delete(oldest.key);
-            this.evictions++;
-        }
-    }
-    
-    getTotalSize() {
-        let size = 0;
-        for (const cache of Object.values(this.caches)) size += cache.size;
-        return size;
-    }
-    
-    cleanup() {
-        const now = Date.now();
-        for (const [type, cache] of Object.entries(this.caches)) {
-            for (const [key, entry] of cache) {
-                if (now - entry.timestamp > (entry.ttl || this.ttls[type] || 60000)) {
-                    cache.delete(key);
-                    this.evictions++;
-                }
-            }
-        }
-        this.cacheSize = this.getTotalSize();
-    }
-    
-    getStats() {
-        return {
-            size: this.cacheSize,
-            maxSize: this.maxCacheSize,
-            hits: this.cacheHits,
-            misses: this.cacheMisses,
-            hitRate: (this.cacheHits + this.cacheMisses) > 0
-                ? (this.cacheHits / (this.cacheHits + this.cacheMisses) * 100).toFixed(2) + '%'
-                : 'N/A',
-            evictions: this.evictions,
-            caches: Object.fromEntries(Object.entries(this.caches).map(([type, cache]) => [type, cache.size]))
-        };
-    }
-    
-    shutdown() {
-        if (this.cleanupInterval) clearInterval(this.cleanupInterval);
-    }
-}
-
-const cache = new CacheManager();
-
-// ============================================
-// 🔌 معالج الطوابير
-// ============================================
-class QueueProcessor {
-    constructor() {
-        this.queues = { high: [], normal: [], low: [], dead: [] };
-        this.processing = { high: false, normal: false, low: false };
-        this.maxConcurrent = { high: 20, normal: 10, low: 5 };
-        this.timeout = 30000;
-        this.stats = {
-            totalProcessed: 0,
-            totalErrors: 0,
-            averageProcessingTime: 0,
-            peakQueueSize: 0,
-            byPriority: { high: 0, normal: 0, low: 0 },
-            retries: 0
-        };
-        this.processingTimes = [];
-        this.retryDelays = [1000, 5000, 15000];
-        this.idempotencyCache = new Map();
-        logger.info('Queue Processor initialized');
-    }
-    
-    async add(action, priority = 0, idempotencyKey = null) {
-        return new Promise((resolve, reject) => {
-            if (idempotencyKey && this.idempotencyCache.has(idempotencyKey)) {
-                const cached = this.idempotencyCache.get(idempotencyKey);
-                if (Date.now() - cached.timestamp < 60000) {
-                    resolve(cached.result);
-                    return;
-                }
-            }
-            
-            const priorityLevel = priority > 0 ? 'high' : priority === 0 ? 'normal' : 'low';
-            const item = {
-                id: idempotencyKey || `action_${Date.now()}_${uuidv4().slice(0, 8)}`,
-                action,
-                priority,
-                resolve,
-                reject,
-                timestamp: Date.now(),
-                retries: 0,
-                maxRetries: 3,
-                status: 'pending',
-                priorityLevel,
-                startTime: null,
-                endTime: null
-            };
-            
-            this.queues[priorityLevel].push(item);
-            this.stats.byPriority[priorityLevel]++;
-            
-            if (this.getTotalSize() > this.stats.peakQueueSize) {
-                this.stats.peakQueueSize = this.getTotalSize();
-            }
-            
-            this.process(priorityLevel);
-        });
-    }
-    
-    async process(priorityLevel = null) {
-        const levels = priorityLevel ? [priorityLevel] : ['high', 'normal', 'low'];
-        
-        for (const level of levels) {
-            if (this.processing[level] || this.queues[level].length === 0) continue;
-            
-            this.processing[level] = true;
-            while (this.queues[level].length > 0) {
-                const batch = this.queues[level].splice(0, this.maxConcurrent[level]);
-                await Promise.all(batch.map(item => this.processItem(item, level)));
-            }
-            this.processing[level] = false;
-        }
-    }
-    
-    async processItem(item, level) {
-        item.startTime = Date.now();
-        
-        try {
-            if (Date.now() - item.timestamp > this.timeout) {
-                item.reject(new Error('Action timeout'));
-                this.stats.totalErrors++;
-                return;
-            }
-            
-            const result = await item.action();
-            this.stats.totalProcessed++;
-            item.status = 'completed';
-            item.endTime = Date.now();
-            item.resolve(result);
-            
-            if (item.id) {
-                this.idempotencyCache.set(item.id, { result, timestamp: Date.now() });
-                for (const [key, value] of this.idempotencyCache) {
-                    if (Date.now() - value.timestamp > 60000) this.idempotencyCache.delete(key);
-                }
-            }
-            
-            const duration = Date.now() - item.startTime;
-            this.processingTimes.push(duration);
-            if (this.processingTimes.length > 1000) this.processingTimes.shift();
-            this.stats.averageProcessingTime = 
-                this.processingTimes.reduce((a, b) => a + b, 0) / this.processingTimes.length;
-            
-        } catch (error) {
-            this.stats.totalErrors++;
-            item.status = 'failed';
-            
-            if (item.retries < item.maxRetries) {
-                const delay = this.retryDelays[item.retries] || 5000;
-                item.retries++;
-                item.timestamp = Date.now() + delay;
-                this.stats.retries++;
-                
-                setTimeout(() => {
-                    this.queues[level].push(item);
-                    this.process(level);
-                }, delay);
-            } else {
-                this.queues.dead.push({ ...item, error: error.message, failedAt: Date.now() });
-                item.reject(error);
-            }
-        }
-    }
-    
-    getTotalSize() {
-        return this.queues.high.length + this.queues.normal.length + this.queues.low.length + this.queues.dead.length;
-    }
-    
-    getStats() {
-        return {
-            queueLength: this.getTotalSize(),
-            processing: this.processing,
-            maxConcurrent: this.maxConcurrent,
-            ...this.stats,
-            deadLetterCount: this.queues.dead.length,
-            idempotencyCache: this.idempotencyCache.size
-        };
-    }
-}
-
-const queueProcessor = new QueueProcessor();
-
-// ============================================
-// 🎮 نظام ELO المتقدم
-// ============================================
-class ELOSystem {
-    constructor() {
-        this.K_FACTOR = 32;
-        this.DEFAULT_ELO = 1000;
-        this.MIN_ELO = 100;
-        this.MAX_ELO = 3000;
-        
-        this.ranks = [
-            { name: 'برونزي', minElo: 0, color: '#cd7f32', icon: '🥉', tier: 1 },
-            { name: 'فضي', minElo: 1000, color: '#c0c0c0', icon: '🥈', tier: 2 },
-            { name: 'ذهبي', minElo: 1200, color: '#ffd700', icon: '🥇', tier: 3 },
-            { name: 'بلاتيني', minElo: 1400, color: '#e5e4e2', icon: '💎', tier: 4 },
-            { name: 'ماسي', minElo: 1600, color: '#b9f2ff', icon: '👑', tier: 5 },
-            { name: 'أسطوري', minElo: 1800, color: '#ff6b6b', icon: '⚡', tier: 6 },
-            { name: 'خارق', minElo: 2000, color: '#ff00ff', icon: '🌟', tier: 7 }
-        ];
-        
-        this.achievements = {
-            first_win: { name: 'الانتصار الأول', points: 10, icon: '🏆' },
-            win_streak_3: { name: 'سلسلة انتصارات (3)', points: 20, icon: '🔥' },
-            win_streak_5: { name: 'سلسلة انتصارات (5)', points: 50, icon: '⚡' },
-            win_streak_10: { name: 'سلسلة انتصارات (10)', points: 100, icon: '👑' },
-            kill_streak_5: { name: 'سلسلة إقصاءات (5)', points: 15, icon: '💀' },
-            kill_streak_10: { name: 'سلسلة إقصاءات (10)', points: 35, icon: '☠️' },
-            perfect_game: { name: 'مباراة مثالية', points: 25, icon: '⭐' },
-            veteran: { name: 'محارب مخضرم (100 مباراة)', points: 30, icon: '🎖️' },
-            legend: { name: 'أسطورة (500 مباراة)', points: 50, icon: '👑' },
-            top_10: { name: 'أفضل 10 لاعبين', points: 40, icon: '🏅' },
-            top_1: { name: 'الأول في العالم', points: 100, icon: '🌍' }
-        };
-        
-        this.playerAchievements = new Map();
-        this.winStreaks = new Map();
-        this.killStreaks = new Map();
-        logger.info('ELO System initialized');
-    }
-    
-    calculateNewELOs(playerA_ELO, playerB_ELO, playerA_won) {
-        const expectedA = 1 / (1 + Math.pow(10, (playerB_ELO - playerA_ELO) / 400));
-        const expectedB = 1 / (1 + Math.pow(10, (playerA_ELO - playerB_ELO) / 400));
-        
-        let kA = this.K_FACTOR, kB = this.K_FACTOR;
-        if (playerA_ELO > 2000) kA = 16;
-        if (playerB_ELO > 2000) kB = 16;
-        if (playerA_ELO < 1000) kA = 40;
-        if (playerB_ELO < 1000) kB = 40;
-        
-        return {
-            newELO_A: Math.max(this.MIN_ELO, Math.min(this.MAX_ELO, Math.round(playerA_ELO + kA * (playerA_won - expectedA)))),
-            newELO_B: Math.max(this.MIN_ELO, Math.min(this.MAX_ELO, Math.round(playerB_ELO + kB * (1 - playerA_won - expectedB))))
-        };
-    }
-    
-    getRank(elo) {
-        let currentRank = this.ranks[0];
-        for (const rank of this.ranks) {
-            if (elo >= rank.minElo) currentRank = rank;
-        }
-        return currentRank;
-    }
-    
-    getRankProgress(elo) {
-        const currentRank = this.getRank(elo);
-        const nextRank = this.ranks.find(r => r.minElo > currentRank.minElo);
-        if (!nextRank) return { current: currentRank, next: null, progress: 1 };
-        return {
-            current: currentRank,
-            next: nextRank,
-            progress: Math.min(1, Math.max(0, (elo - currentRank.minElo) / (nextRank.minElo - currentRank.minElo)))
-        };
-    }
-    
-    async checkAchievements(userId, stats) {
-        const achieved = [];
-        const userAchievements = this.playerAchievements.get(userId) || new Set();
-        this.updateStreaks(userId, stats);
-        
-        const checks = [
-            { key: 'first_win', condition: stats.wins === 1 },
-            { key: 'win_streak_3', condition: (this.winStreaks.get(userId) || 0) >= 3 },
-            { key: 'win_streak_5', condition: (this.winStreaks.get(userId) || 0) >= 5 },
-            { key: 'win_streak_10', condition: (this.winStreaks.get(userId) || 0) >= 10 },
-            { key: 'kill_streak_5', condition: (this.killStreaks.get(userId) || 0) >= 5 },
-            { key: 'kill_streak_10', condition: (this.killStreaks.get(userId) || 0) >= 10 },
-            { key: 'perfect_game', condition: stats.kills >= 5 && stats.deaths === 0 },
-            { key: 'veteran', condition: stats.gamesPlayed >= 100 },
-            { key: 'legend', condition: stats.gamesPlayed >= 500 }
-        ];
-        
-        for (const check of checks) {
-            if (check.condition && !userAchievements.has(check.key)) {
-                achieved.push(check.key);
-                userAchievements.add(check.key);
-            }
-        }
-        
-        this.playerAchievements.set(userId, userAchievements);
-        return achieved;
-    }
-    
-    updateStreaks(userId, stats) {
-        if (stats.won) this.winStreaks.set(userId, (this.winStreaks.get(userId) || 0) + 1);
-        else this.winStreaks.set(userId, 0);
-        
-        if (stats.kills >= 5) this.killStreaks.set(userId, (this.killStreaks.get(userId) || 0) + 1);
-        else if (stats.kills === 0) this.killStreaks.set(userId, 0);
-    }
-    
-    getAchievementReward(achievementKey) {
-        return this.achievements[achievementKey]?.points || 0;
-    }
-    
-    async processMatch(winnerId, loserId, stats) {
-        const winnerResult = await db.query('SELECT elo FROM users WHERE id = $1', [winnerId]);
-        const loserResult = await db.query('SELECT elo FROM users WHERE id = $1', [loserId]);
-        
-        const winnerELO = winnerResult.rows[0]?.elo || this.DEFAULT_ELO;
-        const loserELO = loserResult.rows[0]?.elo || this.DEFAULT_ELO;
-        
-        const { newELO_A: newWinnerELO, newELO_B: newLoserELO } = this.calculateNewELOs(winnerELO, loserELO, true);
-        
-        await db.transaction(async (client) => {
-            await client.query(
-                `UPDATE users SET elo = $1, wins = wins + 1, games_played = games_played + 1, total_rewards = total_rewards + $2
-                 WHERE id = $3`,
-                [newWinnerELO, stats.winReward || 0, winnerId]
-            );
-            await client.query(
-                `UPDATE users SET elo = $1, games_played = games_played + 1 WHERE id = $2`,
-                [newLoserELO, loserId]
-            );
-        });
-        
-        await cache.delete(winnerId, 'user');
-        await cache.delete(loserId, 'user');
-        await cache.delete('leaderboard_elo_10', 'leaderboard');
-        
-        return {
-            winner: {
-                userId: winnerId,
-                oldELO: winnerELO,
-                newELO: newWinnerELO,
-                change: newWinnerELO - winnerELO,
-                rank: this.getRank(newWinnerELO)
-            },
-            loser: {
-                userId: loserId,
-                oldELO: loserELO,
-                newELO: newLoserELO,
-                change: newLoserELO - loserELO,
-                rank: this.getRank(newLoserELO)
-            }
-        };
-    }
-}
-
-const eloSystem = new ELOSystem();
-
-// ============================================
-// 🎯 تحميل إعدادات الخادم
-// ============================================
-let serverConfig = null;
-
-async function loadServerConfig() {
-    try {
-        const cached = await cache.get('server_config', 'config');
-        if (cached) { serverConfig = cached; return serverConfig; }
-        
-        const result = await db.query("SELECT value FROM server_config WHERE key = 'server_config'");
-        if (result.rows.length === 0) {
-            serverConfig = getDefaultConfig();
-            await saveServerConfig(serverConfig);
-        } else {
-            serverConfig = result.rows[0].value;
-        }
-        
-        await cache.set('server_config', serverConfig, 'config');
-        return serverConfig;
-    } catch (error) {
-        logger.error('Error loading config:', { error: error.message });
-        return getDefaultConfig();
-    }
-}
-
-function getDefaultConfig() {
-    return {
-        rooms: {
-            beginner: { enabled: true, maxSeats: 8, seatPrice: 1, rewardMultiplier: 1, maxRooms: 5 },
-            advanced: { enabled: true, maxSeats: 12, seatPrice: 5, rewardMultiplier: 2, maxRooms: 3 },
-            pro: { enabled: true, maxSeats: 16, seatPrice: 10, rewardMultiplier: 3, maxRooms: 2 }
-        },
-        game: {
-            duration: 300000,
-            mapSize: 600,
-            boundaryLimit: 280,
-            bulletSpeed: 2.8,
-            bulletDamage: 25,
-            fireCooldown: 2000,
-            tankHealth: 100,
-            respawnTime: 5000,
-            killRewardPercent: 0.5,
-            winRewardMultiplier: 2.0,
-            minPlayersToStart: 2,
-            maxPlayers: 16,
-            shieldAmount: 50,
-            boostAmount: 100,
-            boostRecharge: 0.5
-        },
-        system: {
-            maintenanceMode: false,
-            antiCheatEnabled: true,
-            adminPassword: process.env.ADMIN_PASSWORD || 'Admin@2024#Battle',
-            jwtSecret: process.env.JWT_SECRET || crypto.randomBytes(64).toString('hex'),
-            enableAuditLog: true,
-            rateLimitWindow: 60000,
-            rateLimitMax: 100
-        },
-        appearance: {
-            gameLogo: '/images/default/logo.png',
-            backgroundImage: '/images/default/background.jpg',
-            primaryColor: '#d4af37',
-            secondaryColor: '#0a0f1a',
-            accentColor: '#ff6b6b'
-        },
-        monitoring: {
-            enablePrometheus: true,
-            enableDetailedLogging: true,
-            healthCheckInterval: 15000,
-            slowQueryThreshold: 1000
-        },
-        features: {
-            enableRespawn: true,
-            enableBoost: true,
-            enableShield: true,
-            enableKillFeed: true
-        }
-    };
-}
-
-async function saveServerConfig(config) {
-    try {
-        await db.query(
-            `INSERT INTO server_config (key, value, updated_at) VALUES ('server_config', $1, CURRENT_TIMESTAMP)
-             ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP`,
-            [config]
+        // ============================================================
+        // جدول الجلسات (مع دعم الأجهزة المتعددة)
+        // ============================================================
+        `
+        CREATE TABLE IF NOT EXISTS sessions (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            token TEXT NOT NULL UNIQUE,
+            refresh_token TEXT UNIQUE,
+            socket_id VARCHAR(255),
+            device_id VARCHAR(255),
+            device_name VARCHAR(255),
+            device_type VARCHAR(50),
+            ip_address INET,
+            user_agent TEXT,
+            expires_at TIMESTAMP NOT NULL,
+            refresh_expires_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-        await cache.set('server_config', config, 'config');
-        serverConfig = config;
-        logger.info('Server config saved');
-        return true;
-    } catch (error) {
-        logger.error('Error saving config:', { error: error.message });
-        return false;
-    }
-}
+        `,
 
-// ============================================
-// 🎮 إدارة المستخدمين
-// ============================================
-class UserManager {
-    constructor() {
-        this.onlineUsers = new Map();
-        logger.info('User Manager initialized');
-    }
-    
-    async getUser(userId) {
-        try {
-            const cached = await cache.get(`user_${userId}`, 'user');
-            if (cached) return cached;
-            
-            const result = await db.query(
-                `SELECT id, username, balance, elo, kills, wins, games_played, total_rewards,
-                        is_admin, is_banned, ban_reason, banned_until
-                 FROM users WHERE id = $1`,
-                [userId]
-            );
-            
-            if (result.rows.length === 0) {
-                const newUser = {
-                    id: userId,
-                    username: `لاعب_${userId.slice(0, 6)}`,
-                    balance: 100,
-                    elo: 1000,
-                    kills: 0,
-                    wins: 0,
-                    games_played: 0,
-                    total_rewards: 0,
-                    is_admin: false,
-                    is_banned: false
-                };
-                
-                await db.query(
-                    `INSERT INTO users (id, username, balance, elo, is_admin, created_at)
-                     VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)`,
-                    [newUser.id, newUser.username, newUser.balance, newUser.elo, newUser.is_admin]
-                );
-                
-                await cache.set(`user_${userId}`, newUser, 'user');
-                return newUser;
-            }
-            
-            const user = result.rows[0];
-            await cache.set(`user_${userId}`, user, 'user');
-            return user;
-        } catch (error) {
-            logger.error('Error getting user:', { error: error.message, userId });
-            return null;
-        }
-    }
-    
-    async updateUser(userId, data) {
-        try {
-            const fields = [];
-            const values = [];
-            let i = 1;
-            for (const [key, value] of Object.entries(data)) {
-                if (key !== 'id' && key !== 'created_at') {
-                    fields.push(`${key} = $${i}`);
-                    values.push(value);
-                    i++;
-                }
-            }
-            values.push(userId);
-            
-            await db.query(
-                `UPDATE users SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $${i}`,
-                values
-            );
-            
-            await cache.delete(`user_${userId}`, 'user');
-            return true;
-        } catch (error) {
-            logger.error('Error updating user:', { error: error.message, userId });
-            return false;
-        }
-    }
-    
-    async addBalance(userId, amount, description = '') {
-        try {
-            const user = await this.getUser(userId);
-            if (!user) return false;
-            
-            const newBalance = user.balance + amount;
-            if (newBalance < 0) return false;
-            
-            await db.transaction(async (client) => {
-                await client.query(
-                    `UPDATE users SET balance = $1 WHERE id = $2`,
-                    [newBalance, userId]
-                );
-                await client.query(
-                    `INSERT INTO transactions (id, user_id, type, amount, balance_before, balance_after, description)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-                    [
-                        `tx_${Date.now()}_${uuidv4().slice(0, 8)}`,
-                        userId,
-                        amount > 0 ? 'credit' : 'debit',
-                        Math.abs(amount),
-                        user.balance,
-                        newBalance,
-                        description
-                    ]
-                );
-            });
-            
-            await cache.delete(`user_${userId}`, 'user');
-            return newBalance;
-        } catch (error) {
-            logger.error('Error adding balance:', { error: error.message, userId });
-            return false;
-        }
-    }
-    
-    async getLeaderboard(type = 'elo', limit = 100) {
-        const cacheKey = `leaderboard_${type}_${limit}`;
-        const cached = await cache.get(cacheKey, 'leaderboard');
-        if (cached) return cached;
-        
-        let orderBy = 'elo DESC';
-        if (type === 'wins') orderBy = 'wins DESC, elo DESC';
-        if (type === 'kills') orderBy = 'kills DESC, elo DESC';
-        if (type === 'rewards') orderBy = 'total_rewards DESC, elo DESC';
-        
-        const result = await db.query(
-            `SELECT id, username, elo, kills, wins, games_played, balance, total_rewards
-             FROM users WHERE is_banned = false
-             ORDER BY ${orderBy} LIMIT $1`,
-            [limit]
+        // ============================================================
+        // جدول الغرف (مع دعم الإعدادات المتقدمة)
+        // ============================================================
+        `
+        CREATE TABLE IF NOT EXISTS rooms (
+            id VARCHAR(50) PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            type VARCHAR(50) NOT NULL,
+            max_seats INTEGER NOT NULL DEFAULT 2,
+            seat_price INTEGER NOT NULL DEFAULT 1,
+            status VARCHAR(20) DEFAULT 'waiting',
+            players_count INTEGER DEFAULT 0,
+            started_at TIMESTAMP,
+            ended_at TIMESTAMP,
+            winner_team INTEGER,
+            game_data JSONB,
+            map_id VARCHAR(50) DEFAULT 'desert',
+            map_name VARCHAR(100) DEFAULT 'صحراء',
+            game_mode VARCHAR(50) DEFAULT 'team_deathmatch',
+            duration INTEGER DEFAULT 300,
+            max_score INTEGER DEFAULT 50,
+            created_by UUID REFERENCES users(id),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-        
-        const leaderboard = result.rows.map((user, index) => ({
-            ...user,
-            rank: index + 1,
-            rankName: eloSystem.getRank(user.elo || 1000).name
-        }));
-        
-        await cache.set(cacheKey, leaderboard, 'leaderboard');
-        return leaderboard;
+        `,
+
+        // ============================================================
+        // جدول مشاركات اللاعبين (مع إحصائيات متقدمة)
+        // ============================================================
+        `
+        CREATE TABLE IF NOT EXISTS room_players (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            room_id VARCHAR(50) NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            socket_id VARCHAR(255),
+            team INTEGER DEFAULT 1,
+            health INTEGER DEFAULT 100,
+            max_health INTEGER DEFAULT 100,
+            paid_amount INTEGER NOT NULL DEFAULT 0,
+            position_x FLOAT DEFAULT 0,
+            position_y FLOAT DEFAULT 0,
+            position_z FLOAT DEFAULT 0,
+            rotation FLOAT DEFAULT 0,
+            kills INTEGER DEFAULT 0,
+            deaths INTEGER DEFAULT 0,
+            assists INTEGER DEFAULT 0,
+            damage_dealt INTEGER DEFAULT 0,
+            damage_taken INTEGER DEFAULT 0,
+            shots_fired INTEGER DEFAULT 0,
+            shots_hit INTEGER DEFAULT 0,
+            accuracy FLOAT DEFAULT 0,
+            is_alive BOOLEAN DEFAULT TRUE,
+            is_ready BOOLEAN DEFAULT FALSE,
+            respawn_timer INTEGER DEFAULT 0,
+            joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            left_at TIMESTAMP,
+            UNIQUE(room_id, user_id)
+        );
+        `,
+
+        // ============================================================
+        // جدول المعاملات المالية
+        // ============================================================
+        `
+        CREATE TABLE IF NOT EXISTS transactions (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            type VARCHAR(30) NOT NULL,
+            amount INTEGER NOT NULL,
+            balance_after INTEGER NOT NULL,
+            description TEXT,
+            room_id VARCHAR(50),
+            admin_id UUID REFERENCES users(id),
+            reference_id UUID,
+            metadata JSONB,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        `,
+
+        // ============================================================
+        // جدول سجل التدقيق (Audit Log)
+        // ============================================================
+        `
+        CREATE TABLE IF NOT EXISTS audit_logs (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+            action VARCHAR(100) NOT NULL,
+            details JSONB,
+            ip_address INET,
+            user_agent TEXT,
+            severity VARCHAR(20) DEFAULT 'info',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        `,
+
+        // ============================================================
+        // جدول الإحصائيات اليومية
+        // ============================================================
+        `
+        CREATE TABLE IF NOT EXISTS daily_stats (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            date DATE NOT NULL UNIQUE,
+            total_users INTEGER DEFAULT 0,
+            active_users INTEGER DEFAULT 0,
+            new_users INTEGER DEFAULT 0,
+            games_played INTEGER DEFAULT 0,
+            total_revenue INTEGER DEFAULT 0,
+            total_damage INTEGER DEFAULT 0,
+            avg_players_per_game FLOAT DEFAULT 0,
+            peak_players INTEGER DEFAULT 0,
+            avg_game_duration FLOAT DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        `,
+
+        // ============================================================
+        // جدول الحظر (Ban List)
+        // ============================================================
+        `
+        CREATE TABLE IF NOT EXISTS bans (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            admin_id UUID REFERENCES users(id),
+            reason TEXT,
+            duration INTEGER,
+            expires_at TIMESTAMP,
+            ip_address INET,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        `,
+
+        // ============================================================
+        // جدول الإشعارات
+        // ============================================================
+        `
+        CREATE TABLE IF NOT EXISTS notifications (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            type VARCHAR(50) NOT NULL,
+            title VARCHAR(255) NOT NULL,
+            message TEXT NOT NULL,
+            data JSONB,
+            is_read BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        `,
+
+        // ============================================================
+        // الفهارس لتحسين الأداء
+        // ============================================================
+        `CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id);`,
+        `CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);`,
+        `CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);`,
+        `CREATE INDEX IF NOT EXISTS idx_users_last_active ON users(last_active);`,
+        `CREATE INDEX IF NOT EXISTS idx_users_is_admin ON users(is_admin);`,
+        `CREATE INDEX IF NOT EXISTS idx_users_is_banned ON users(is_banned);`,
+        `CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);`,
+        `CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);`,
+        `CREATE INDEX IF NOT EXISTS idx_sessions_refresh_token ON sessions(refresh_token);`,
+        `CREATE INDEX IF NOT EXISTS idx_sessions_socket_id ON sessions(socket_id);`,
+        `CREATE INDEX IF NOT EXISTS idx_rooms_status ON rooms(status);`,
+        `CREATE INDEX IF NOT EXISTS idx_rooms_type ON rooms(type);`,
+        `CREATE INDEX IF NOT EXISTS idx_rooms_map_id ON rooms(map_id);`,
+        `CREATE INDEX IF NOT EXISTS idx_room_players_room_id ON room_players(room_id);`,
+        `CREATE INDEX IF NOT EXISTS idx_room_players_user_id ON room_players(user_id);`,
+        `CREATE INDEX IF NOT EXISTS idx_room_players_is_alive ON room_players(is_alive);`,
+        `CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id);`,
+        `CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at);`,
+        `CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);`,
+        `CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);`,
+        `CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);`,
+        `CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);`,
+        `CREATE INDEX IF NOT EXISTS idx_bans_user_id ON bans(user_id);`,
+        `CREATE INDEX IF NOT EXISTS idx_bans_expires_at ON bans(expires_at);`,
+        `CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);`,
+        `CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read);`,
+
+        // ============================================================
+        // الدوال والإجراءات المخزنة
+        // ============================================================
+        `
+        CREATE OR REPLACE FUNCTION update_updated_at_column()
+        RETURNS TRIGGER AS $$
+        BEGIN
+            NEW.updated_at = CURRENT_TIMESTAMP;
+            RETURN NEW;
+        END;
+        $$ language 'plpgsql';
+        `,
+
+        // Triggers للتحديث التلقائي
+        `
+        DROP TRIGGER IF EXISTS update_users_updated_at ON users;
+        CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+        `,
+        `
+        DROP TRIGGER IF EXISTS update_rooms_updated_at ON rooms;
+        CREATE TRIGGER update_rooms_updated_at BEFORE UPDATE ON rooms
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+        `,
+        `
+        DROP TRIGGER IF EXISTS update_daily_stats_updated_at ON daily_stats;
+        CREATE TRIGGER update_daily_stats_updated_at BEFORE UPDATE ON daily_stats
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+        `,
+
+        // ============================================================
+        // دالة لتحديث إحصائيات المستخدم المتقدمة
+        // ============================================================
+        `
+        CREATE OR REPLACE FUNCTION update_user_stats(
+            p_user_id UUID,
+            p_kills INTEGER DEFAULT 0,
+            p_deaths INTEGER DEFAULT 0,
+            p_assists INTEGER DEFAULT 0,
+            p_damage INTEGER DEFAULT 0,
+            p_shots_fired INTEGER DEFAULT 0,
+            p_shots_hit INTEGER DEFAULT 0,
+            p_won BOOLEAN DEFAULT FALSE,
+            p_playtime INTEGER DEFAULT 0
+        ) RETURNS VOID AS $$
+        BEGIN
+            UPDATE users SET
+                total_kills = total_kills + p_kills,
+                total_deaths = total_deaths + p_deaths,
+                total_damage_dealt = total_damage_dealt + p_damage,
+                games_played = games_played + 1,
+                wins = wins + CASE WHEN p_won THEN 1 ELSE 0 END,
+                losses = losses + CASE WHEN p_won THEN 0 ELSE 1 END,
+                current_streak = CASE
+                    WHEN p_won THEN current_streak + 1
+                    ELSE 0
+                END,
+                longest_streak = GREATEST(longest_streak, current_streak + CASE WHEN p_won THEN 1 ELSE 0 END),
+                total_playtime = total_playtime + p_playtime,
+                accuracy = CASE
+                    WHEN total_shots_fired + p_shots_fired > 0 
+                    THEN ((total_shots_hit + p_shots_hit)::FLOAT / (total_shots_fired + p_shots_fired)::FLOAT) * 100
+                    ELSE accuracy
+                END
+            WHERE id = p_user_id;
+        END;
+        $$ LANGUAGE plpgsql;
+        `,
+
+        // ============================================================
+        // دالة لتسجيل المعاملة مع التحقق
+        // ============================================================
+        `
+        CREATE OR REPLACE FUNCTION log_transaction(
+            p_user_id UUID,
+            p_type VARCHAR(30),
+            p_amount INTEGER,
+            p_description TEXT DEFAULT NULL,
+            p_room_id VARCHAR(50) DEFAULT NULL,
+            p_admin_id UUID DEFAULT NULL,
+            p_metadata JSONB DEFAULT NULL
+        ) RETURNS UUID AS $$
+        DECLARE
+            v_balance INTEGER;
+            v_transaction_id UUID;
+            v_new_balance INTEGER;
+        BEGIN
+            SELECT balance INTO v_balance FROM users WHERE id = p_user_id FOR UPDATE;
+            IF v_balance IS NULL THEN
+                RAISE EXCEPTION 'User not found';
+            END IF;
+
+            -- التحقق من الرصيد للسحب
+            IF p_type IN ('withdraw', 'game_entry', 'admin_remove') AND v_balance < p_amount THEN
+                RAISE EXCEPTION 'Insufficient balance: % < %', v_balance, p_amount;
+            END IF;
+
+            -- حساب الرصيد الجديد
+            v_new_balance := CASE
+                WHEN p_type IN ('deposit', 'game_reward', 'admin_add', 'refund') THEN v_balance + p_amount
+                WHEN p_type IN ('withdraw', 'game_entry', 'admin_remove') THEN v_balance - p_amount
+                ELSE v_balance
+            END;
+
+            INSERT INTO transactions (
+                user_id, type, amount, balance_after, description, room_id, admin_id, metadata
+            ) VALUES (
+                p_user_id, p_type, p_amount, v_new_balance, p_description, p_room_id, p_admin_id, p_metadata
+            ) RETURNING id INTO v_transaction_id;
+
+            UPDATE users SET balance = v_new_balance WHERE id = p_user_id;
+
+            RETURN v_transaction_id;
+        END;
+        $$ LANGUAGE plpgsql;
+        `,
+
+        // ============================================================
+        // دالة للحصول على إحصائيات اللاعب
+        // ============================================================
+        `
+        CREATE OR REPLACE FUNCTION get_player_stats(p_user_id UUID)
+        RETURNS TABLE (
+            games_played INTEGER,
+            wins INTEGER,
+            losses INTEGER,
+            win_rate FLOAT,
+            total_kills INTEGER,
+            total_deaths INTEGER,
+            kd_ratio FLOAT,
+            total_damage_dealt INTEGER,
+            total_damage_taken INTEGER,
+            accuracy FLOAT,
+            longest_streak INTEGER,
+            current_streak INTEGER
+        ) AS $$
+        BEGIN
+            RETURN QUERY
+            SELECT 
+                u.games_played,
+                u.wins,
+                u.losses,
+                CASE WHEN u.games_played > 0 
+                    THEN (u.wins::FLOAT / u.games_played::FLOAT) * 100 
+                    ELSE 0 
+                END AS win_rate,
+                u.total_kills,
+                u.total_deaths,
+                CASE WHEN u.total_deaths > 0 
+                    THEN u.total_kills::FLOAT / u.total_deaths::FLOAT 
+                    ELSE u.total_kills::FLOAT 
+                END AS kd_ratio,
+                u.total_damage_dealt,
+                u.total_damage_taken,
+                u.accuracy,
+                u.longest_streak,
+                u.current_streak
+            FROM users u
+            WHERE u.id = p_user_id;
+        END;
+        $$ LANGUAGE plpgsql;
+        `,
+    ];
+
+    for (const query of queries) {
+        try {
+            await pool.query(query);
+        } catch (error) {
+            logger.warn(`⚠️ Query warning: ${error.message}`);
+        }
     }
-    
-    setOnline(userId, socketId) {
-        this.onlineUsers.set(userId, { socketId, connectedAt: Date.now() });
-    }
-    
-    setOffline(userId) {
-        this.onlineUsers.delete(userId);
-    }
-    
-    getOnline(userId) {
-        return this.onlineUsers.get(userId);
-    }
-    
-    getOnlineCount() {
-        return this.onlineUsers.size;
-    }
-    
-    getOnlineUsers() {
-        return Array.from(this.onlineUsers.entries()).map(([id, data]) => ({ userId: id, ...data }));
-    }
+
+    // ============================================================
+    // إنشاء المشرف الافتراضي
+    // ============================================================
+    const adminTelegramId = parseInt(process.env.ADMIN_TELEGRAM_ID) || 999999999;
+    await pool.query(
+        `INSERT INTO users (telegram_id, username, email, balance, is_admin, is_verified)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (telegram_id) DO UPDATE SET is_admin = TRUE, is_verified = TRUE`,
+        [adminTelegramId, 'Admin', 'admin@battletanks.com', 99999, true, true]
+    );
+
+    // ============================================================
+    // إنشاء أنواع الغرف الافتراضية
+    // ============================================================
+    await pool.query(
+        `INSERT INTO room_types (name, max_seats, seat_price, prefix, map_id, map_name, game_mode)
+         VALUES 
+            ('غرفة المبتدئين', 2, 1, 'beginner', 'desert', 'صحراء', 'team_deathmatch'),
+            ('غرفة المتقدمين', 4, 5, 'advanced', 'urban', 'مدينة', 'team_deathmatch'),
+            ('غرفة المحترفين', 6, 10, 'pro', 'arena', 'ساحة', 'team_deathmatch'),
+            ('غرفة الأساطير', 8, 25, 'legend', 'fortress', 'قلعة', 'team_deathmatch')
+         ON CONFLICT (name) DO NOTHING`
+    );
+
+    logger.info('✅ Database schema initialized successfully!');
+    return true;
 }
 
-const userManager = new UserManager();
-
-// ============================================
-// 🎮 إدارة الغرف
-// ============================================
-class RoomManager {
-    constructor() {
-        this.rooms = new Map();
-        this.activeGames = new Map();
-        this.pendingReconnects = new Map();
-        this.lock = new DistributedLock();
-        this.roomTypes = {
-            beginner: { name: 'غرفة المبتدئين', icon: '🟢', minElo: 0, maxElo: 1200 },
-            advanced: { name: 'غرفة المتقدمين', icon: '🟡', minElo: 1000, maxElo: 1800 },
-            pro: { name: 'غرفة المحترفين', icon: '🔴', minElo: 1600, maxElo: 3000 }
-        };
-        
-        this.initializeRooms();
-        setInterval(() => this.cleanupInactiveRooms(), 60000);
-        logger.info('Room Manager initialized');
-    }
-    
-    async initializeRooms() {
-        try {
-            const config = await loadServerConfig();
-            const roomConfigs = config.rooms || {};
-            
-            for (const [type, settings] of Object.entries(roomConfigs)) {
-                if (!settings.enabled) continue;
-                
-                for (let i = 1; i <= settings.maxRooms; i++) {
-                    const roomId = `${type}_${i}`;
-                    if (!this.rooms.has(roomId)) {
-                        this.rooms.set(roomId, {
-                            id: roomId,
-                            type: type,
-                            name: `${this.roomTypes[type]?.icon || '🏠'} ${this.roomTypes[type]?.name || type} ${i}`,
-                            maxSeats: settings.maxSeats,
-                            seatPrice: settings.seatPrice,
-                            rewardMultiplier: settings.rewardMultiplier || 1,
-                            players: [],
-                            status: 'waiting',
-                            createdAt: Date.now(),
-                            gameRound: 0,
-                            minElo: this.roomTypes[type]?.minElo || 0,
-                            maxElo: this.roomTypes[type]?.maxElo || 3000,
-                            stats: { totalGames: 0, totalKills: 0 }
-                        });
-                    }
-                }
-            }
-            
-            logger.info(`Rooms initialized: ${this.rooms.size} rooms`);
-            this.broadcastRoomsList();
-        } catch (error) {
-            logger.error('Error initializing rooms:', { error: error.message });
-        }
-    }
-    
-    async joinRoom(socket, userId, roomId) {
-        const lockKey = `join_${userId}_${roomId}`;
-        try {
-            await this.lock.acquireLock(lockKey, userId, 5000);
-            
-            const room = this.rooms.get(roomId);
-            if (!room) {
-                socket.emit('error', { message: 'الغرفة غير موجودة' });
-                return null;
-            }
-            
-            if (room.status !== 'waiting') {
-                socket.emit('error', { message: 'الغرفة مشغولة' });
-                return null;
-            }
-            
-            if (room.players.length >= room.maxSeats) {
-                socket.emit('error', { message: 'الغرفة ممتلئة' });
-                return null;
-            }
-            
-            const user = await userManager.getUser(userId);
-            if (!user) {
-                socket.emit('error', { message: 'بيانات المستخدم غير موجودة' });
-                return null;
-            }
-            
-            if (user.is_banned) {
-                socket.emit('error', { message: 'أنت محظور' });
-                return null;
-            }
-            
-            if (user.elo < room.minElo || user.elo > room.maxElo) {
-                socket.emit('error', { 
-                    message: `تصنيفك ${user.elo} غير مناسب (${room.minElo}-${room.maxElo})` 
-                });
-                return null;
-            }
-            
-            if (user.balance < room.seatPrice) {
-                socket.emit('error', { 
-                    message: `رصيد غير كافٍ. السعر: ${room.seatPrice}$` 
-                });
-                return null;
-            }
-            
-            const newBalance = await userManager.addBalance(
-                userId, 
-                -room.seatPrice, 
-                `انضمام للغرفة ${room.name}`
-            );
-            
-            if (newBalance === false) {
-                socket.emit('error', { message: 'فشل خصم الرصيد' });
-                return null;
-            }
-            
-            const player = {
-                userId,
-                socketId: socket.id,
-                username: user.username,
-                elo: user.elo,
-                balance: newBalance,
-                health: 100,
-                kills: 0,
-                joinedAt: Date.now(),
-                position: null
-            };
-            
-            room.players.push(player);
-            socket.join(roomId);
-            userManager.setOnline(userId, socket.id);
-            
-            socket.emit('room_joined', {
-                roomId,
-                roomName: room.name,
-                players: room.players.map(p => ({
-                    userId: p.userId,
-                    username: p.username,
-                    elo: p.elo
-                })),
-                balance: newBalance,
-                seatPrice: room.seatPrice,
-                maxSeats: room.maxSeats
-            });
-            
-            io.to(roomId).emit('player_joined', {
-                userId,
-                username: player.username,
-                elo: player.elo,
-                playersCount: room.players.length,
-                maxSeats: room.maxSeats
-            });
-            
-            this.broadcastRoomsList();
-            
-            if (room.players.length >= 2) {
-                await this.startGame(roomId);
-            }
-            
-            this.lock.releaseLock(lockKey, userId);
-            return room;
-        } catch (error) {
-            logger.error('Error joining room:', { error: error.message, userId, roomId });
-            socket.emit('error', { message: error.message });
-            await this.lock.releaseLock(lockKey, userId);
-            return null;
-        }
-    }
-    
-    async leaveRoom(socket, userId, roomId) {
-        const lockKey = `leave_${userId}_${roomId}`;
-        try {
-            await this.lock.acquireLock(lockKey, userId, 5000);
-            
-            const room = this.rooms.get(roomId);
-            if (!room) { await this.lock.releaseLock(lockKey, userId); return; }
-            
-            const playerIndex = room.players.findIndex(p => p.userId === userId);
-            if (playerIndex === -1) { await this.lock.releaseLock(lockKey, userId); return; }
-            
-            const player = room.players[playerIndex];
-            
-            if (room.status === 'waiting') {
-                await userManager.addBalance(
-                    userId, 
-                    room.seatPrice, 
-                    `استرداد من غرفة ${room.name}`
-                );
-                socket.emit('balance_update', { 
-                    balance: player.balance + room.seatPrice,
-                    message: `تم إعادة ${room.seatPrice}$` 
-                });
-            }
-            
-            room.players.splice(playerIndex, 1);
-            socket.leave(roomId);
-            userManager.setOffline(userId);
-            
-            io.to(roomId).emit('player_left', {
-                userId,
-                playersCount: room.players.length,
-                maxSeats: room.maxSeats
-            });
-            
-            if (room.players.length === 0 && room.status === 'waiting') {
-                this.resetRoom(roomId);
-            }
-            
-            this.broadcastRoomsList();
-            await this.lock.releaseLock(lockKey, userId);
-        } catch (error) {
-            logger.error('Error leaving room:', { error: error.message, userId, roomId });
-            await this.lock.releaseLock(lockKey, userId);
-        }
-    }
-    
-    async startGame(roomId) {
-        const lockKey = `start_${roomId}`;
-        try {
-            await this.lock.acquireLock(lockKey, 'system', 10000);
-            
-            const room = this.rooms.get(roomId);
-            if (!room || room.status !== 'waiting' || room.players.length < 2) {
-                await this.lock.releaseLock(lockKey, 'system');
-                return null;
-            }
-            
-            room.status = 'active';
-            room.startTime = Date.now();
-            
-            const game = new GameEngine(roomId, room);
-            game.start();
-            this.activeGames.set(roomId, game);
-            
-            const gameData = {
-                roomId,
-                players: room.players.map(p => ({
-                    userId: p.userId,
-                    username: p.username,
-                    elo: p.elo
-                })),
-                startTime: room.startTime,
-                gameRound: room.gameRound + 1,
-                totalPlayers: room.players.length
-            };
-            
-            for (const player of room.players) {
-                const socket = io.sockets.sockets.get(player.socketId);
-                if (socket) {
-                    socket.emit('game_start', {
-                        ...gameData,
-                        yourId: player.userId,
-                        position: this.getSpawnPosition(room.players.indexOf(player))
-                    });
-                }
-            }
-            
-            room.gameRound++;
-            logger.info(`Game started in ${room.name} with ${room.players.length} players`);
-            monitoring.recordGameStarted(room.players.length);
-            
-            this.broadcastRoomsList();
-            await this.lock.releaseLock(lockKey, 'system');
-            return game;
-        } catch (error) {
-            logger.error('Error starting game:', { error: error.message, roomId });
-            await this.lock.releaseLock(lockKey, 'system');
-            return null;
-        }
-    }
-    
-    getSpawnPosition(index) {
-        const positions = [
-            { x: -120, z: -80 }, { x: 120, z: 80 },
-            { x: -100, z: 60 }, { x: 100, z: -60 },
-            { x: -50, z: -100 }, { x: 50, z: 100 },
-            { x: -80, z: -120 }, { x: 80, z: 120 },
-            { x: 0, z: -100 }, { x: 0, z: 100 },
-            { x: -100, z: 0 }, { x: 100, z: 0 }
-        ];
-        return positions[index % positions.length] || positions[0];
-    }
-    
-    async resetRoom(roomId) {
-        const lockKey = `reset_${roomId}`;
-        try {
-            await this.lock.acquireLock(lockKey, 'system', 10000);
-            
-            const oldRoom = this.rooms.get(roomId);
-            if (!oldRoom) { await this.lock.releaseLock(lockKey, 'system'); return; }
-            
-            if (this.activeGames.has(roomId)) {
-                this.activeGames.get(roomId).stop();
-                this.activeGames.delete(roomId);
-            }
-            
-            const newRoom = {
-                ...oldRoom,
-                players: [],
-                status: 'waiting',
-                createdAt: Date.now(),
-                startTime: null
-            };
-            
-            this.rooms.set(roomId, newRoom);
-            logger.info(`Room reset: ${oldRoom.name}`);
-            this.broadcastRoomsList();
-            
-            await this.lock.releaseLock(lockKey, 'system');
-        } catch (error) {
-            logger.error('Error resetting room:', { error: error.message, roomId });
-            await this.lock.releaseLock(lockKey, 'system');
-        }
-    }
-    
-    broadcastRoomsList() {
-        const roomsList = [];
-        for (const [roomId, room] of this.rooms) {
-            if (room.status === 'waiting' || room.status === 'active') {
-                roomsList.push({
-                    id: roomId,
-                    name: room.name,
-                    type: room.type,
-                    players: room.players.length,
-                    maxSeats: room.maxSeats,
-                    seatPrice: room.seatPrice,
-                    status: room.status,
-                    minElo: room.minElo,
-                    maxElo: room.maxElo,
-                    gameRound: room.gameRound
-                });
-            }
-        }
-        io.emit('rooms_list', { rooms: roomsList });
-    }
-    
-    broadcastLobbyStats() {
-        io.emit('lobby_stats', {
-            totalPlayers: userManager.getOnlineCount(),
-            activeRooms: Array.from(this.rooms.values()).filter(r => r.status === 'active').length,
-            waitingRooms: Array.from(this.rooms.values()).filter(r => r.status === 'waiting').length,
-            totalRooms: this.rooms.size,
-            activeGames: this.activeGames.size,
-            serverTime: Date.now(),
-            version: '12.0.0'
-        });
-    }
-    
-    cleanupInactiveRooms() {
-        const now = Date.now();
-        const timeout = 3600000;
-        for (const [roomId, room] of this.rooms) {
-            if (room.status === 'waiting' && room.players.length === 0 && now - room.createdAt > timeout) {
-                this.rooms.delete(roomId);
-                logger.info(`Removed inactive room: ${roomId}`);
-            }
-        }
-    }
-}
-
-const roomManager = new RoomManager();
-
-// ============================================
-// 🎮 محرك اللعبة المتقدم
-// ============================================
-class GameEngine {
-    constructor(roomId, room) {
-        this.roomId = roomId;
-        this.room = room;
-        this.tanks = new Map();
-        this.bullets = [];
-        this.obstacles = [];
-        this.powerups = [];
-        this.killFeed = [];
-        this.aliveCount = 0;
-        this.gameEnded = false;
-        this.gameStartTime = Date.now();
-        this.tickInterval = null;
-        this.bulletId = 0;
-        this.killRewards = new Map();
-        this.eliminatedPlayers = new Set();
-        this.gameRound = (room.gameRound || 0) + 1;
-        this.config = null;
-        this.zoneShrink = {
-            active: false,
-            currentRadius: 280,
-            targetRadius: 50,
-            shrinkRate: 0,
-            startTime: 0,
-            duration: 0
-        };
-        
-        this.initGame();
-        logger.info(`GameEngine created for ${roomId}`);
-    }
-    
-    async initGame() {
-        this.config = await loadServerConfig();
-        const gameConfig = this.config.game || {};
-        
-        const spawnPositions = this.generateSpawnPositions();
-        
-        for (let i = 0; i < this.room.players.length; i++) {
-            const player = this.room.players[i];
-            const position = spawnPositions[i % spawnPositions.length];
-            
-            this.tanks.set(player.userId, {
-                position: { ...position },
-                health: gameConfig.tankHealth || 100,
-                shield: gameConfig.shieldAmount || 50,
-                maxShield: gameConfig.shieldAmount || 50,
-                boost: gameConfig.boostAmount || 100,
-                maxBoost: gameConfig.boostAmount || 100,
-                rotation: 0,
-                respawning: false,
-                name: player.username || 'لاعب',
-                kills: 0,
-                lastShoot: 0,
-                speed: 0.25,
-                rotationSpeed: 0.04,
-                active: true,
-                powerups: []
-            });
-        }
-        
-        this.obstacles = this.generateObstacles();
-        this.powerups = this.generatePowerups();
-        this.aliveCount = this.tanks.size;
-        this.startZoneShrink();
-    }
-    
-    startZoneShrink() {
-        const gameConfig = this.config.game || {};
-        const duration = gameConfig.duration || 300000;
-        
-        this.zoneShrink.active = true;
-        this.zoneShrink.currentRadius = gameConfig.boundaryLimit || 280;
-        this.zoneShrink.targetRadius = 50;
-        this.zoneShrink.shrinkRate = (this.zoneShrink.currentRadius - this.zoneShrink.targetRadius) / (duration / 1000);
-        this.zoneShrink.startTime = Date.now();
-        this.zoneShrink.duration = duration;
-    }
-    
-    generateSpawnPositions() {
-        const positions = [];
-        const count = this.room.players.length;
-        const radius = 300;
-        for (let i = 0; i < count; i++) {
-            const angle = (i / count) * 2 * Math.PI + Math.random() * 0.1;
-            const distance = radius * 0.4 + Math.random() * radius * 0.6;
-            positions.push({
-                x: Math.cos(angle) * distance,
-                z: Math.sin(angle) * distance
-            });
-        }
-        return positions;
-    }
-    
-    generateObstacles() {
-        const obstacles = [];
-        const count = 30 + Math.floor(Math.random() * 20);
-        for (let i = 0; i < count; i++) {
-            const angle = Math.random() * 2 * Math.PI;
-            const distance = 50 + Math.random() * 250;
-            const size = 1.5 + Math.random() * 4;
-            obstacles.push({
-                id: `obs_${i}`,
-                position: { x: Math.cos(angle) * distance, z: Math.sin(angle) * distance },
-                radius: size,
-                health: 50 + Math.random() * 50,
-                destroyed: false
-            });
-        }
-        return obstacles;
-    }
-    
-    generatePowerups() {
-        const powerups = [];
-        const types = ['health', 'shield', 'boost', 'speed', 'damage'];
-        const count = 10 + Math.floor(Math.random() * 10);
-        for (let i = 0; i < count; i++) {
-            const angle = Math.random() * 2 * Math.PI;
-            const distance = 50 + Math.random() * 230;
-            powerups.push({
-                id: `pw_${i}`,
-                type: types[Math.floor(Math.random() * types.length)],
-                position: { x: Math.cos(angle) * distance, z: Math.sin(angle) * distance },
-                active: true,
-                respawnTime: 10000,
-                lastSpawn: Date.now()
-            });
-        }
-        return powerups;
-    }
-    
-    start() {
-        this.tickInterval = setInterval(() => {
-            const timeStep = 0.05;
-            this.update(timeStep);
-        }, 50);
-        
-        setInterval(() => {
-            io.to(this.roomId).emit('game_ping', { time: Date.now() });
-        }, 5000);
-        
-        logger.info(`Game started for ${this.roomId}`);
-    }
-    
-    update(timeStep) {
-        if (this.gameEnded) return;
-        
-        this.updateBullets(timeStep);
-        this.updatePowerups(timeStep);
-        this.updateZoneShrink(timeStep);
-        this.updateTanks(timeStep);
-        this.checkCollisions();
-        this.updateAliveCount();
-        this.broadcastGameState();
-        this.checkGameEnd();
-    }
-    
-    updateBullets(timeStep) {
-        const toRemove = [];
-        const boundary = this.zoneShrink.currentRadius || 280;
-        
-        for (let i = 0; i < this.bullets.length; i++) {
-            const bullet = this.bullets[i];
-            bullet.position.x += bullet.velocity.x * timeStep;
-            bullet.position.z += bullet.velocity.z * timeStep;
-            bullet.life--;
-            
-            if (bullet.life <= 0 || Math.abs(bullet.position.x) > boundary || Math.abs(bullet.position.z) > boundary) {
-                toRemove.push(i);
-            }
-        }
-        
-        for (const idx of toRemove.sort((a, b) => b - a)) {
-            this.bullets.splice(idx, 1);
-        }
-    }
-    
-    updatePowerups(timeStep) {
-        const now = Date.now();
-        for (const powerup of this.powerups) {
-            if (!powerup.active && now - powerup.lastSpawn > powerup.respawnTime) {
-                powerup.active = true;
-                const angle = Math.random() * 2 * Math.PI;
-                const distance = 50 + Math.random() * 200;
-                powerup.position = { x: Math.cos(angle) * distance, z: Math.sin(angle) * distance };
-            }
-        }
-    }
-    
-    updateZoneShrink(timeStep) {
-        if (!this.zoneShrink.active) return;
-        
-        const elapsed = (Date.now() - this.zoneShrink.startTime) / 1000;
-        const progress = Math.min(1, elapsed / (this.zoneShrink.duration / 1000));
-        
-        this.zoneShrink.currentRadius -= this.zoneShrink.shrinkRate * timeStep;
-        this.zoneShrink.currentRadius = Math.max(this.zoneShrink.targetRadius, this.zoneShrink.currentRadius);
-        
-        if (Math.floor(progress * 10) % 2 === 0) {
-            io.to(this.roomId).emit('zone_update', {
-                radius: this.zoneShrink.currentRadius,
-                progress: progress,
-                damage: (1 - progress) * 2
-            });
-        }
-    }
-    
-    updateTanks(timeStep) {
-        for (const [userId, tank] of this.tanks) {
-            if (tank.shield < tank.maxShield) {
-                tank.shield = Math.min(tank.maxShield, tank.shield + 1 * timeStep);
-            }
-            if (tank.boost < tank.maxBoost) {
-                tank.boost = Math.min(tank.maxBoost, tank.boost + 5 * timeStep);
-            }
-            
-            const distance = Math.sqrt(tank.position.x * tank.position.x + tank.position.z * tank.position.z);
-            if (distance > this.zoneShrink.currentRadius) {
-                const damage = (1 - this.zoneShrink.currentRadius / 280) * 2 * timeStep;
-                this.handleDamage(null, userId, damage);
-            }
-            
-            if (tank.health <= 0 && !tank.respawning && !this.eliminatedPlayers.has(userId)) {
-                this.handleTankDestroyed(userId);
-            }
-        }
-    }
-    
-    checkCollisions() {
-        const toRemove = [];
-        
-        for (let i = 0; i < this.bullets.length; i++) {
-            const bullet = this.bullets[i];
-            let bulletHit = false;
-            
-            for (const [userId, tank] of this.tanks) {
-                if (userId === bullet.ownerId) continue;
-                if (tank.health <= 0) continue;
-                
-                const dx = bullet.position.x - tank.position.x;
-                const dz = bullet.position.z - tank.position.z;
-                const distance = Math.sqrt(dx * dx + dz * dz);
-                
-                if (distance < 2.5) {
-                    this.handleDamage(bullet.ownerId, userId, bullet.damage || 25);
-                    bulletHit = true;
-                    break;
-                }
-            }
-            
-            if (!bulletHit) {
-                for (const obstacle of this.obstacles) {
-                    if (obstacle.destroyed) continue;
-                    const dx = bullet.position.x - obstacle.position.x;
-                    const dz = bullet.position.z - obstacle.position.z;
-                    const distance = Math.sqrt(dx * dx + dz * dz);
-                    
-                    if (distance < obstacle.radius) {
-                        obstacle.health -= 25;
-                        if (obstacle.health <= 0) {
-                            obstacle.destroyed = true;
-                            bulletHit = true;
-                            io.to(this.roomId).emit('obstacle_destroyed', {
-                                id: obstacle.id,
-                                position: obstacle.position
-                            });
-                        }
-                        break;
-                    }
-                }
-            }
-            
-            if (!bulletHit) {
-                for (const powerup of this.powerups) {
-                    if (!powerup.active) continue;
-                    const dx = bullet.position.x - powerup.position.x;
-                    const dz = bullet.position.z - powerup.position.z;
-                    const distance = Math.sqrt(dx * dx + dz * dz);
-                    
-                    if (distance < 1.5) {
-                        this.collectPowerup(bullet.ownerId, powerup);
-                        bulletHit = true;
-                        break;
-                    }
-                }
-            }
-            
-            if (bulletHit) toRemove.push(i);
-        }
-        
-        for (const idx of toRemove.sort((a, b) => b - a)) {
-            this.bullets.splice(idx, 1);
-        }
-    }
-    
-    handleDamage(shooterId, targetId, damage) {
-        const target = this.tanks.get(targetId);
-        if (!target || target.health <= 0 || this.eliminatedPlayers.has(targetId)) return;
-        
-        let actualDamage = damage;
-        if (target.shield > 0) {
-            const shieldDamage = Math.min(target.shield, actualDamage);
-            target.shield -= shieldDamage;
-            actualDamage -= shieldDamage;
-        }
-        
-        const newHealth = Math.max(0, target.health - actualDamage);
-        target.health = newHealth;
-        
-        io.to(this.roomId).emit('player_hit', {
-            targetId,
-            shooterId,
-            damage: actualDamage,
-            newHealth,
-            shield: target.shield,
-            timestamp: Date.now()
-        });
-        
-        if (newHealth <= 0) {
-            this.handleTankDestroyed(targetId, shooterId);
-        }
-    }
-    
-    handleTankDestroyed(targetId, shooterId = null) {
-        const target = this.tanks.get(targetId);
-        if (!target || this.eliminatedPlayers.has(targetId)) return;
-        
-        this.eliminatedPlayers.add(targetId);
-        target.health = 0;
-        target.active = false;
-        
-        if (shooterId && shooterId !== targetId) {
-            const reward = this.calculateKillReward(shooterId);
-            this.killRewards.set(shooterId, (this.killRewards.get(shooterId) || 0) + reward);
-            
-            const killer = this.tanks.get(shooterId);
-            if (killer) killer.kills = (killer.kills || 0) + 1;
-            
-            io.to(this.roomId).emit('player_eliminated', {
-                targetId,
-                killerId: shooterId,
-                reward,
-                targetName: target.name,
-                killerName: this.tanks.get(shooterId)?.name || 'لاعب',
-                aliveCount: this.aliveCount - 1
-            });
-            
-            this.killFeed.push({
-                killer: this.tanks.get(shooterId)?.name || 'لاعب',
-                target: target.name,
-                timestamp: Date.now()
-            });
-            if (this.killFeed.length > 20) this.killFeed.shift();
-            
-            io.to(this.roomId).emit('kill_feed_update', { kills: this.killFeed.slice(-10) });
-        }
-        
-        const respawnTime = this.config?.game?.respawnTime || 5000;
-        setTimeout(() => this.respawnPlayer(targetId), respawnTime);
-    }
-    
-    respawnPlayer(userId) {
-        if (this.gameEnded) return;
-        
-        const tank = this.tanks.get(userId);
-        if (!tank) return;
-        
-        if (this.eliminatedPlayers.has(userId)) {
-            this.eliminatedPlayers.delete(userId);
-            tank.health = 100;
-            tank.shield = 50;
-            tank.boost = 100;
-            tank.active = true;
-            tank.respawning = false;
-            
-            const positions = this.generateSpawnPositions();
-            const pos = positions[Math.floor(Math.random() * positions.length)];
-            tank.position = { ...pos };
-            
-            io.to(this.roomId).emit('player_respawned', {
-                userId,
-                position: tank.position,
-                health: 100,
-                shield: 50
-            });
-            
-            io.to(userId).emit('respawn_success', {
-                message: '✅ تم إعادة إحياء دبابتك!'
-            });
-        }
-    }
-    
-    collectPowerup(userId, powerup) {
-        const tank = this.tanks.get(userId);
-        if (!tank) return;
-        
-        powerup.active = false;
-        powerup.lastSpawn = Date.now();
-        
-        let message = '';
-        switch(powerup.type) {
-            case 'health':
-                const heal = 50;
-                tank.health = Math.min(100, tank.health + heal);
-                message = `❤️ +${heal} صحة`;
-                break;
-            case 'shield':
-                tank.shield = Math.min(tank.maxShield, tank.shield + 30);
-                message = `🛡️ +30 درع`;
-                break;
-            case 'boost':
-                tank.boost = Math.min(tank.maxBoost, tank.boost + 50);
-                message = `⚡ +50 تعزيز`;
-                break;
-            case 'speed':
-                tank.speed *= 1.3;
-                setTimeout(() => { tank.speed /= 1.3; }, 5000);
-                message = `💨 زيادة السرعة`;
-                break;
-            case 'damage':
-                message = `💥 زيادة الضرر`;
-                break;
-        }
-        
-        io.to(userId).emit('powerup_collected', { type: powerup.type, message });
-        io.to(this.roomId).emit('powerup_used', { userId, type: powerup.type, position: powerup.position });
-    }
-    
-    updateAliveCount() {
-        let alive = 0;
-        for (const [userId, tank] of this.tanks) {
-            if (tank.health > 0 && !this.eliminatedPlayers.has(userId)) alive++;
-        }
-        this.aliveCount = alive;
-    }
-    
-    broadcastGameState() {
-        const state = {
-            tanks: Array.from(this.tanks.entries()).map(([userId, tank]) => ({
-                userId,
-                position: tank.position,
-                health: tank.health,
-                shield: tank.shield,
-                rotation: tank.rotation,
-                active: tank.active
-            })),
-            bullets: this.bullets.map(b => ({ id: b.id, position: b.position, ownerId: b.ownerId })),
-            obstacles: this.obstacles.filter(o => !o.destroyed),
-            powerups: this.powerups.filter(p => p.active),
-            aliveCount: this.aliveCount,
-            zoneRadius: this.zoneShrink.currentRadius,
-            timestamp: Date.now()
-        };
-        io.to(this.roomId).emit('game_state', state);
-    }
-    
-    checkGameEnd() {
-        const gameDuration = this.config?.game?.duration || 300000;
-        const timeElapsed = Date.now() - this.gameStartTime;
-        
-        if (this.aliveCount <= 1 || timeElapsed >= gameDuration) {
-            this.endGame();
-        }
-    }
-    
-    async endGame() {
-        if (this.gameEnded) return;
-        this.gameEnded = true;
-        this.stop();
-        
-        let winnerId = null;
-        for (const [userId, tank] of this.tanks) {
-            if (tank.health > 0 && !this.eliminatedPlayers.has(userId)) {
-                winnerId = userId;
-                break;
-            }
-        }
-        
-        const duration = Math.floor((Date.now() - this.gameStartTime) / 1000);
-        const winnerReward = winnerId ? this.calculateWinReward(winnerId) : 0;
-        
-        try {
-            await db.query(
-                `INSERT INTO matches (id, room_id, winner_id, players, kill_feed, start_time, end_time, duration, total_players, game_round)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-                [
-                    `match_${Date.now()}_${uuidv4().slice(0, 8)}`,
-                    this.roomId,
-                    winnerId,
-                    JSON.stringify(this.room.players.map(p => ({
-                        userId: p.userId,
-                        username: p.username,
-                        kills: this.tanks.get(p.userId)?.kills || 0
-                    }))),
-                    JSON.stringify(this.killFeed.slice(-20)),
-                    new Date(this.gameStartTime),
-                    new Date(),
-                    duration,
-                    this.tanks.size,
-                    this.gameRound
-                ]
-            );
-        } catch (error) {
-            logger.error('Error saving match:', { error: error.message });
-        }
-        
-        if (winnerId) await this.distributeRewards(winnerId, winnerReward);
-        
-        io.to(this.roomId).emit('game_ended', {
-            winner: winnerId,
-            winReward: winnerReward,
-            duration,
-            totalPlayers: this.tanks.size,
-            killFeed: this.killFeed.slice(-10),
-            kills: Array.from(this.killRewards.entries()).map(([id, reward]) => ({
-                userId: id,
-                kills: this.tanks.get(id)?.kills || 0,
-                reward
-            })),
-            gameRound: this.gameRound,
-            timestamp: Date.now()
-        });
-        
-        this.room.status = 'finished';
-        logger.info(`Game ended in ${this.room.name}. Winner: ${winnerId || 'none'}`);
-        monitoring.recordGameEnded(duration);
-        
-        setTimeout(() => roomManager.resetRoom(this.roomId), 10000);
-    }
-    
-    calculateKillReward(killerId) {
-        const killer = this.room.players.find(p => p.userId === killerId);
-        if (!killer) return 0;
-        const seatPrice = this.room.seatPrice || 1;
-        const percent = this.config?.game?.killRewardPercent || 0.5;
-        return Math.round(seatPrice * percent * 100) / 100;
-    }
-    
-    calculateWinReward(winnerId) {
-        const winner = this.room.players.find(p => p.userId === winnerId);
-        if (!winner) return 0;
-        const seatPrice = this.room.seatPrice || 1;
-        const multiplier = this.config?.game?.winRewardMultiplier || 2.0;
-        const kills = this.tanks.get(winnerId)?.kills || 0;
-        const killBonus = kills * seatPrice * (this.config?.game?.killRewardPercent || 0.5);
-        return Math.round((seatPrice * multiplier + killBonus) * 100) / 100;
-    }
-    
-    async distributeRewards(winnerId, winReward) {
-        try {
-            await db.transaction(async (client) => {
-                for (const player of this.room.players) {
-                    const isWinner = player.userId === winnerId;
-                    const kills = this.tanks.get(player.userId)?.kills || 0;
-                    const reward = isWinner ? winReward : 0;
-                    const killsReward = kills * 0.1;
-                    const totalReward = reward + killsReward;
-                    
-                    const result = await client.query('SELECT elo, balance FROM users WHERE id = $1', [player.userId]);
-                    const currentELO = result.rows[0]?.elo || 1000;
-                    const currentBalance = result.rows[0]?.balance || 0;
-                    
-                    let eloChange = isWinner ? 15 + Math.floor(kills / 2) : -5 + kills * 2;
-                    const newELO = Math.max(1, currentELO + eloChange);
-                    const newBalance = currentBalance + totalReward;
-                    
-                    await client.query(
-                        `UPDATE users SET balance = $1, elo = $2, games_played = games_played + 1,
-                         wins = wins + $3, kills = kills + $4, total_rewards = total_rewards + $5
-                         WHERE id = $6`,
-                        [newBalance, newELO, isWinner ? 1 : 0, kills, totalReward, player.userId]
-                    );
-                    
-                    const rank = eloSystem.getRank(newELO);
-                    io.to(player.socketId).emit('game_ended_rewards', {
-                        isWinner,
-                        reward: totalReward,
-                        eloChange,
-                        newELO,
-                        newBalance,
-                        rank,
-                        kills,
-                        killsReward
-                    });
-                }
-            });
-        } catch (error) {
-            logger.error('Error distributing rewards:', { error: error.message });
-            monitoring.recordError('reward_distribution_error', error.message, 'game');
-        }
-    }
-    
-    stop() {
-        if (this.tickInterval) {
-            clearInterval(this.tickInterval);
-            this.tickInterval = null;
-        }
-    }
-}
-
-// ============================================
-// 🚀 تهيئة Express
-// ============================================
+// ================================================================
+// 🚀 تهيئة Express مع كل وسائل الأمان المتقدمة
+// ================================================================
 const app = express();
-const server = http.createServer(app);
 
+// ================================================================
+// 🛡️ الأمان المتقدم
+// ================================================================
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'"],
-            scriptSrc: ["'self'", "'unsafe-inline'"],
-            imgSrc: ["'self'", "data:", "https:"],
-            connectSrc: ["'self'", "wss:", "ws:"]
-        }
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 
+                "https://cdn.socket.io", "https://unpkg.com", "https://cdnjs.cloudflare.com", 
+                "https://www.gstatic.com", "https://cdn.jsdelivr.net", "https://raw.githubusercontent.com"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
+            imgSrc: ["'self'", "data:", "https:", "blob:"],
+            connectSrc: ["'self'", "wss:", "https:", "ws:", "blob:"],
+            frameSrc: ["'none'"],
+            objectSrc: ["'none'"],
+            mediaSrc: ["'self'", "https:", "data:"],
+            workerSrc: ["'self'", "blob:"],
+            upgradeInsecureRequests: [],
+        },
     },
-    hsts: { maxAge: 31536000, includeSubDomains: true, preload: true }
+    crossOriginEmbedderPolicy: false,
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+    crossOriginResourcePolicy: { policy: "cross-origin" },
 }));
 
-app.use(compression());
-app.use(cors({
-    origin: process.env.CORS_ORIGIN?.split(',') || '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+// ================================================================
+// 📦 الضغط والتخزين المؤقت المتقدم
+// ================================================================
+app.use(compression({
+    level: 9,
+    threshold: 512,
+    filter: (req, res) => {
+        if (req.headers['x-no-compression']) return false;
+        return compression.filter(req, res);
+    },
+    brotli: true,
+    zlib: { level: 9, memLevel: 9 }
+}));
+
+// ================================================================
+// 🌐 CORS المتقدم
+// ================================================================
+const corsOptions = {
+    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-CSRF-Token'],
+    exposedHeaders: ['X-Total-Count', 'X-Page', 'X-Page-Size', 'X-RateLimit-Limit', 'X-RateLimit-Remaining'],
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Token', 'X-Request-ID']
+    maxAge: 86400,
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
+};
+app.use(cors(corsOptions));
+
+// ================================================================
+// 📊 معدل الطلبات (Rate Limiting) المتقدم
+// ================================================================
+const globalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 1000,
+    message: { error: 'Too many requests, please try again later.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => req.ip || req.headers['x-forwarded-for'] || 'unknown',
+    skip: (req) => req.path === '/health',
+});
+app.use('/api/', globalLimiter);
+
+const authLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 50,
+    message: { error: 'Too many authentication attempts, please try again later.' },
+    skipSuccessfulRequests: true,
+    keyGenerator: (req) => req.ip || req.headers['x-forwarded-for'] || 'unknown',
+});
+app.use('/api/auth/', authLimiter);
+
+const gameLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 100,
+    message: { error: 'Too many game requests, slow down.' },
+    keyGenerator: (req) => req.ip || req.headers['x-forwarded-for'] || 'unknown',
+});
+app.use('/api/game/', gameLimiter);
+
+// ================================================================
+// 🐌 تباطؤ الطلبات (Slow Down)
+// ================================================================
+const speedLimiter = slowDown({
+    windowMs: 15 * 60 * 1000,
+    delayAfter: 100,
+    delayMs: (hits) => hits * 50,
+    keyGenerator: (req) => req.ip || req.headers['x-forwarded-for'] || 'unknown',
+});
+app.use(speedLimiter);
+
+// ================================================================
+// 📦 معالجة JSON والـ Body مع التحقق
+// ================================================================
+app.use(express.json({ 
+    limit: '100mb',
+    verify: (req, res, buf) => {
+        try {
+            JSON.parse(buf);
+        } catch (e) {
+            res.status(400).json({ error: 'Invalid JSON' });
+            throw new Error('Invalid JSON');
+        }
+    }
+}));
+app.use(express.urlencoded({ extended: true, limit: '100mb' }));
+
+// ================================================================
+// 📁 تقديم الملفات الثابتة مع التخزين المؤقت المتقدم
+// ================================================================
+app.use(express.static('public', {
+    maxAge: process.env.NODE_ENV === 'production' ? '1y' : 0,
+    etag: true,
+    lastModified: true,
+    setHeaders: (res, path) => {
+        if (path.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        } else if (path.match(/\.(js|css|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot)$/)) {
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+    }
 }));
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
+// ================================================================
+// 📝 سجل الطلبات مع تتبع الوقت
+// ================================================================
 app.use((req, res, next) => {
-    req.requestId = req.headers['x-request-id'] || uuidv4();
-    res.setHeader('X-Request-ID', req.requestId);
+    const start = Date.now();
+    res.on('finish', () => {
+        const duration = Date.now() - start;
+        logger.info(`${req.method} ${req.path} - ${res.statusCode} - ${duration}ms - ${req.ip}`);
+    });
     next();
 });
 
-app.use(morgan('combined', {
-    stream: { write: (message) => logger.info('HTTP Request', { message: message.trim() }) }
-}));
+// ================================================================
+// 🏠 نظام الغرف المتقدم مع 4 أنواع و 10 غرف لكل نوع
+// ================================================================
+const ROOM_TYPES = [
+    { name: 'غرفة المبتدئين', maxSeats: 2, seatPrice: 1, prefix: 'beginner', map: 'desert', mapName: 'صحراء' },
+    { name: 'غرفة المتقدمين', maxSeats: 4, seatPrice: 5, prefix: 'advanced', map: 'urban', mapName: 'مدينة' },
+    { name: 'غرفة المحترفين', maxSeats: 6, seatPrice: 10, prefix: 'pro', map: 'arena', mapName: 'ساحة' },
+    { name: 'غرفة الأساطير', maxSeats: 8, seatPrice: 25, prefix: 'legend', map: 'fortress', mapName: 'قلعة' },
+];
 
-const limiter = rateLimit({
-    windowMs: 60000,
-    max: 100,
-    message: { error: 'Too many requests, please try again later.' }
-});
-app.use('/api/', limiter);
+const ROOMS_PER_TYPE = parseInt(process.env.ROOMS_PER_TYPE) || 10;
 
-// ============================================
-// 📊 نقاط النهاية العامة
-// ============================================
-app.get('/health', (req, res) => {
-    const health = {
-        status: 'ok',
-        timestamp: new Date().toISOString(),
-        uptime: monitoring.formatUptime(Math.floor((Date.now() - monitoring.startTime) / 1000)),
-        version: '12.0.0',
-        service: 'battle-tanks-royale',
-        requestId: req.requestId,
-        checks: {
-            database: db.getHealth(),
-            connections: monitoring.metrics.connections.active,
-            memory: process.memoryUsage().heapUsed / 1024 / 1024,
-            cpu: process.cpuUsage().user / 1000000
-        }
-    };
-    res.status(health.checks.database.connected ? 200 : 503).json(health);
-});
+// ================================================================
+// 📦 التخزين المؤقت في الذاكرة
+// ================================================================
+const rooms = new Map();
+const players = new Map();
+const roomTimers = new Map();
+const roomIntervals = new Map();
+const joinLocks = new Map();
+const gameStates = new Map();
+const pendingActions = new Map();
+const rateLimits = new Map();
 
-app.get('/metrics', (req, res) => {
-    const stats = monitoring.getStats();
-    let output = '# HELP battle_tanks_metrics Metrics for Battle Tanks Royale\n';
-    output += '# TYPE battle_tanks_metrics gauge\n';
-    output += `battle_tanks_connections_active ${stats.connections.active}\n`;
-    output += `battle_tanks_connections_total ${stats.connections.total}\n`;
-    output += `battle_tanks_requests_total ${stats.requests.total}\n`;
-    output += `battle_tanks_requests_success ${stats.requests.success}\n`;
-    output += `battle_tanks_requests_error ${stats.requests.error}\n`;
-    output += `battle_tanks_games_active ${stats.games.active}\n`;
-    output += `battle_tanks_games_total ${stats.games.total}\n`;
-    output += `battle_tanks_errors_total ${stats.errors.total}\n`;
-    output += `battle_tanks_database_connected ${stats.database.connected ? 1 : 0}\n`;
-    res.set('Content-Type', 'text/plain').send(output);
-});
-
-app.get('/api/config', async (req, res) => {
+// ================================================================
+// 🏗️ تهيئة الغرف
+// ================================================================
+async function initializeRooms() {
     try {
-        const config = await loadServerConfig();
-        const sanitized = { ...config, system: { ...config.system, adminPassword: undefined, jwtSecret: undefined } };
-        res.json({ success: true, config: sanitized });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
+        const result = await pool.query('SELECT COUNT(*) FROM rooms');
 
-app.get('/api/user/:userId', async (req, res) => {
-    try {
-        const user = await userManager.getUser(req.params.userId);
-        if (!user) return res.status(404).json({ success: false, error: 'User not found' });
-        const rank = eloSystem.getRank(user.elo || 1000);
-        res.json({ success: true, user: { ...user, rank, rankProgress: eloSystem.getRankProgress(user.elo || 1000) } });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
+        if (parseInt(result.rows[0].count) === 0) {
+            logger.info('🏠 Creating initial rooms...');
 
-app.get('/api/leaderboard', async (req, res) => {
-    try {
-        const limit = Math.min(parseInt(req.query.limit) || 100, 100);
-        const type = req.query.type || 'elo';
-        const leaderboard = await userManager.getLeaderboard(type, limit);
-        res.json({ success: true, leaderboard });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
+            for (const type of ROOM_TYPES) {
+                for (let i = 1; i <= ROOMS_PER_TYPE; i++) {
+                    const roomId = `${type.prefix}_room_${String(i).padStart(2, '0')}`;
+                    await pool.query(
+                        `INSERT INTO rooms (id, name, type, max_seats, seat_price, status, players_count, map_id, map_name, game_mode)
+                         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                        [
+                            roomId,
+                            `${type.name} ${i}`,
+                            type.name,
+                            type.maxSeats,
+                            type.seatPrice,
+                            'waiting',
+                            0,
+                            type.map,
+                            type.mapName,
+                            'team_deathmatch'
+                        ]
+                    );
 
-// ============================================
-// 🔑 واجهات الإدارة
-// ============================================
-const authenticateAdmin = (req, res, next) => {
-    const token = req.headers['authorization']?.split(' ')[1];
-    if (!token) return res.status(401).json({ success: false, error: 'No token provided' });
-    try {
-        const config = loadServerConfig();
-        const decoded = jwt.verify(token, config.system.jwtSecret || process.env.JWT_SECRET || 'default-secret');
-        if (!decoded.isAdmin) return res.status(403).json({ success: false, error: 'Not authorized' });
-        req.user = decoded;
-        next();
-    } catch (error) {
-        return res.status(403).json({ success: false, error: 'Invalid token' });
-    }
-};
-
-app.post('/api/admin/login', async (req, res) => {
-    try {
-        const { password } = req.body;
-        const config = await loadServerConfig();
-        if (antiCheat.verifyAdminPassword(password)) {
-            const token = jwt.sign(
-                { isAdmin: true, timestamp: Date.now() },
-                config.system.jwtSecret || process.env.JWT_SECRET || 'default-secret',
-                { expiresIn: '1h' }
-            );
-            monitoring.recordAdminAction('login');
-            res.json({ success: true, token, expiresIn: 3600 });
+                    rooms.set(roomId, {
+                        id: roomId,
+                        name: `${type.name} ${i}`,
+                        type: type.name,
+                        maxSeats: type.maxSeats,
+                        seatPrice: type.seatPrice,
+                        status: 'waiting',
+                        players: [],
+                        playersCount: 0,
+                        mapId: type.map,
+                        mapName: type.mapName,
+                        gameMode: 'team_deathmatch',
+                        startTime: null,
+                        gameInterval: null,
+                        duration: 300,
+                        maxScore: 50,
+                    });
+                }
+            }
+            logger.info(`✅ Created ${ROOM_TYPES.length * ROOMS_PER_TYPE} rooms`);
         } else {
-            monitoring.recordAdminAction('login_failed');
-            res.status(401).json({ success: false, error: 'Invalid admin password' });
-        }
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-app.get('/api/admin/stats', authenticateAdmin, async (req, res) => {
-    try {
-        const stats = {
-            monitoring: monitoring.getStats(),
-            locks: lockSystem.getStats(),
-            antiCheat: antiCheat.getStats(),
-            queue: queueProcessor.getStats(),
-            database: db.getHealth(),
-            cache: cache.getStats(),
-            rooms: {
-                total: roomManager.rooms.size,
-                active: Array.from(roomManager.rooms.values()).filter(r => r.status === 'active').length,
-                waiting: Array.from(roomManager.rooms.values()).filter(r => r.status === 'waiting').length,
-                players: userManager.getOnlineCount()
-            },
-            games: {
-                active: roomManager.activeGames.size,
-                total: monitoring.metrics.games.total,
-                completed: monitoring.metrics.games.completed
-            },
-            server: {
-                uptime: monitoring.formatUptime(Math.floor((Date.now() - monitoring.startTime) / 1000)),
-                memory: process.memoryUsage().heapUsed / 1024 / 1024
+            const allRooms = await pool.query('SELECT * FROM rooms ORDER BY id');
+            for (const row of allRooms.rows) {
+                rooms.set(row.id, {
+                    ...row,
+                    players: [],
+                    gameInterval: null,
+                    startTime: null,
+                });
             }
-        };
-        res.json({ success: true, stats });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-app.post('/api/admin/ban', authenticateAdmin, async (req, res) => {
-    try {
-        const { userId, reason } = req.body;
-        if (!userId) return res.status(400).json({ success: false, error: 'User ID required' });
-        await antiCheat.banUser(userId, reason || 'Banned by admin');
-        const player = userManager.getOnline(userId);
-        if (player) {
-            const socket = io.sockets.sockets.get(player.socketId);
-            if (socket) { socket.emit('banned', { reason: reason || 'تم حظرك' }); socket.disconnect(); }
-        }
-        monitoring.recordAdminAction('ban_user', userId);
-        res.json({ success: true, message: `User ${userId} banned` });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-app.post('/api/admin/unban', authenticateAdmin, async (req, res) => {
-    try {
-        const { userId } = req.body;
-        if (!userId) return res.status(400).json({ success: false, error: 'User ID required' });
-        const result = await antiCheat.unbanUser(userId);
-        if (result) {
-            monitoring.recordAdminAction('unban_user', userId);
-            res.json({ success: true, message: `User ${userId} unbanned` });
-        } else {
-            res.status(404).json({ success: false, error: 'User not found or not banned' });
+            logger.info(`✅ Loaded ${rooms.size} rooms from database`);
         }
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-app.post('/api/admin/balance', authenticateAdmin, async (req, res) => {
-    try {
-        const { userId, amount } = req.body;
-        if (!userId || amount === undefined) {
-            return res.status(400).json({ success: false, error: 'User ID and amount required' });
-        }
-        const newBalance = await userManager.addBalance(userId, amount, 'Admin adjustment');
-        if (newBalance === false) return res.status(500).json({ success: false, error: 'Failed to update balance' });
-        monitoring.recordAdminAction('balance', userId);
-        res.json({ success: true, newBalance });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-app.post('/api/admin/config', authenticateAdmin, async (req, res) => {
-    try {
-        const { config } = req.body;
-        if (!config) return res.status(400).json({ success: false, error: 'Config required' });
-        await saveServerConfig(config);
-        monitoring.recordAdminAction('update_config');
-        res.json({ success: true, message: 'Config updated successfully' });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-app.post('/api/admin/maintenance', authenticateAdmin, async (req, res) => {
-    try {
-        const { enabled } = req.body;
-        const config = await loadServerConfig();
-        config.system.maintenanceMode = enabled;
-        await saveServerConfig(config);
-        if (enabled) {
-            io.emit('maintenance_mode', { enabled: true, message: '🔧 الخادم في وضع الصيانة' });
-        }
-        monitoring.recordAdminAction('toggle_maintenance');
-        res.json({ success: true, message: `Maintenance mode ${enabled ? 'enabled' : 'disabled'}` });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-// ============================================
-// 🔌 WebSocket Server
-// ============================================
-const io = socketIo(server, {
-    cors: {
-        origin: process.env.CORS_ORIGIN?.split(',') || '*',
-        methods: ['GET', 'POST'],
-        credentials: true
-    },
-    transports: ['websocket', 'polling'],
-    pingTimeout: 60000,
-    pingInterval: 25000,
-    maxHttpBufferSize: 1e6,
-    path: '/socket.io',
-    connectTimeout: 30000
-});
-
-io.use(async (socket, next) => {
-    try {
-        const userId = socket.handshake.query.userId;
-        if (!userId) return next(new Error('User ID required'));
-        
-        if (!antiCheat.checkRateLimit(userId, 'auth', socket.handshake.address)) {
-            return next(new Error('Too many authentication attempts'));
-        }
-        
-        if (await antiCheat.isUserBanned(userId)) {
-            return next(new Error('User is banned'));
-        }
-        
-        const config = await loadServerConfig();
-        if (config.system.maintenanceMode) {
-            return next(new Error('Server is in maintenance mode'));
-        }
-        
-        socket.userId = userId;
-        socket.userData = await userManager.getUser(userId);
-        socket.connectedAt = Date.now();
-        next();
-    } catch (error) {
-        logger.error('Socket auth error:', { error: error.message });
-        next(new Error('Authentication failed'));
-    }
-});
-
-io.on('connection', (socket) => {
-    const userId = socket.userId;
-    logger.info(`Socket connected: ${socket.id} for user ${userId}`);
-    monitoring.recordConnection('connect');
-    userManager.setOnline(userId, socket.id);
-    
-    socket.emit('connected', {
-        userId,
-        socketId: socket.id,
-        timestamp: Date.now(),
-        serverTime: Date.now(),
-        version: '12.0.0'
-    });
-    
-    roomManager.broadcastRoomsList();
-    roomManager.broadcastLobbyStats();
-    
-    socket.on('ping', (data) => {
-        const latency = Date.now() - data.time;
-        socket.emit('pong', { time: Date.now(), latency, serverTime: Date.now() });
-        const player = userManager.getOnline(userId);
-        if (player) player.lastPing = Date.now();
-    });
-    
-    socket.on('join_room', async (data) => {
-        const startTime = Date.now();
-        try {
-            if (!data.roomId) { socket.emit('error', { message: 'Room ID required' }); return; }
-            if (!antiCheat.checkRateLimit(userId, 'join', socket.handshake.address)) {
-                socket.emit('error', { message: 'Too many join attempts' }); return;
-            }
-            const room = await roomManager.joinRoom(socket, userId, data.roomId);
-            monitoring.recordRequest(!!room, Date.now() - startTime);
-        } catch (error) {
-            logger.error('Join room error:', { error: error.message, userId });
-            socket.emit('error', { message: error.message });
-            monitoring.recordRequest(false, Date.now() - startTime);
-            monitoring.recordError('join_room_error', error.message, 'socket');
-        }
-    });
-    
-    socket.on('leave_room', async (data) => {
-        const startTime = Date.now();
-        try {
-            if (!data.roomId) { socket.emit('error', { message: 'Room ID required' }); return; }
-            await roomManager.leaveRoom(socket, userId, data.roomId);
-            monitoring.recordRequest(true, Date.now() - startTime);
-        } catch (error) {
-            logger.error('Leave room error:', { error: error.message, userId });
-            socket.emit('error', { message: error.message });
-            monitoring.recordRequest(false, Date.now() - startTime);
-            monitoring.recordError('leave_room_error', error.message, 'socket');
-        }
-    });
-    
-    socket.on('player_move', (data) => {
-        const player = userManager.getOnline(userId);
-        if (!player?.currentRoomId) return;
-        if (!antiCheat.checkRateLimit(userId, 'move', socket.handshake.address)) return;
-        
-        const game = roomManager.activeGames.get(player.currentRoomId);
-        if (!game) return;
-        const tank = game.tanks.get(userId);
-        if (!tank || tank.health <= 0) return;
-        
-        tank.position = { ...data.position };
-        tank.rotation = data.rotation || tank.rotation;
-        socket.to(player.currentRoomId).emit('player_moved', {
-            userId,
-            position: data.position,
-            rotation: data.rotation,
-            timestamp: Date.now()
-        });
-    });
-    
-    socket.on('player_shoot', (data) => {
-        const player = userManager.getOnline(userId);
-        if (!player?.currentRoomId) return;
-        if (!antiCheat.checkRateLimit(userId, 'shoot', socket.handshake.address)) return;
-        
-        const game = roomManager.activeGames.get(player.currentRoomId);
-        if (!game) return;
-        const tank = game.tanks.get(userId);
-        if (!tank || tank.health <= 0) return;
-        
-        const bullet = {
-            id: `bullet_${Date.now()}_${game.bulletId++}`,
-            ownerId: userId,
-            position: { ...data.position },
-            velocity: {
-                x: data.direction.x * (game.config?.game?.bulletSpeed || 2.8),
-                z: data.direction.z * (game.config?.game?.bulletSpeed || 2.8)
-            },
-            damage: game.config?.game?.bulletDamage || 25,
-            life: 200,
-            timestamp: Date.now()
-        };
-        game.bullets.push(bullet);
-        io.to(player.currentRoomId).emit('bullet_fired', {
-            bulletId: bullet.id,
-            ownerId: userId,
-            position: data.position,
-            direction: data.direction,
-            timestamp: Date.now()
-        });
-    });
-    
-    socket.on('get_leaderboard', async () => {
-        try {
-            const leaderboard = await userManager.getLeaderboard('elo', 100);
-            socket.emit('leaderboard_update', { leaderboard });
-        } catch (error) {
-            socket.emit('error', { message: 'Failed to get leaderboard' });
-        }
-    });
-    
-    socket.on('get_stats', async () => {
-        try {
-            const user = await userManager.getUser(userId);
-            if (user) {
-                const rank = eloSystem.getRank(user.elo || 1000);
-                socket.emit('stats_update', { ...user, rank, rankProgress: eloSystem.getRankProgress(user.elo || 1000) });
-            }
-        } catch (error) {
-            socket.emit('error', { message: 'Failed to get stats' });
-        }
-    });
-    
-    socket.on('disconnect', () => {
-        logger.info(`Socket disconnected: ${socket.id} for user ${userId}`);
-        monitoring.recordConnection('disconnect');
-        userManager.setOffline(userId);
-        roomManager.broadcastLobbyStats();
-    });
-});
-
-// ============================================
-// 🚀 بدء تشغيل الخادم
-// ============================================
-const PORT = process.env.PORT || 10000;
-
-async function startServer() {
-    try {
-        await db.connect();
-        await initializeDatabase();
-        await loadServerConfig();
-        
-        server.listen(PORT, '0.0.0.0', () => {
-            console.log(`
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                                                                              ║
-║     🎮 BATTLE TANKS ROYALE - v12.0.0 COMPLETE EDITION 🎮                   ║
-║                                                                              ║
-╠══════════════════════════════════════════════════════════════════════════════╣
-║  📡 Server: http://0.0.0.0:${PORT}
-║  🗄️ Database: PostgreSQL ✅ Connected
-║  ⚡ WebSocket: Ready
-║  🎯 Mode: Battle Royale
-║                                                                              ║
-║  🛡️ Anti-Cheat: ${antiCheat.enabled ? '✅ ENABLED' : '❌ DISABLED'}
-║  🔒 Lock System: ✅ ACTIVE
-║  📊 Queue System: ✅ ACTIVE
-║  📈 Monitoring: ✅ ACTIVE
-║  💾 Cache: ✅ ACTIVE
-║                                                                              ║
-║  🏠 Rooms: ${roomManager.rooms.size} available
-║  👥 Players: ${userManager.getOnlineCount()} online
-║  🎮 Games: ${roomManager.activeGames.size} active
-║                                                                              ║
-║  📊 API Endpoints:
-║     - GET  /health
-║     - GET  /metrics
-║     - GET  /api/config
-║     - GET  /api/user/:userId
-║     - GET  /api/leaderboard
-║     - POST /api/admin/login
-║     - GET  /api/admin/stats
-║     - POST /api/admin/ban
-║     - POST /api/admin/unban
-║     - POST /api/admin/balance
-║     - POST /api/admin/config
-║     - POST /api/admin/maintenance
-║                                                                              ║
-║  🔄 Database Auto-Reconnect: ✅ ENABLED
-║  ⚡ Circuit Breaker: ✅ ENABLED
-║  💾 Cache: ✅ ACTIVE
-║                                                                              ║
-╚══════════════════════════════════════════════════════════════════════════════╝
-            `);
-        });
-        
-    } catch (error) {
-        logger.error('Failed to start server:', { error: error.message });
-        console.error('❌ Failed to start server:', error.message);
-        console.log('🔄 Retrying in 10 seconds...');
-        setTimeout(startServer, 10000);
-    }
-}
-
-async function initializeDatabase() {
-    try {
-        await db.query(`
-            CREATE TABLE IF NOT EXISTS users (
-                id VARCHAR(64) PRIMARY KEY,
-                telegram_id VARCHAR(64) UNIQUE,
-                username VARCHAR(100),
-                balance INTEGER DEFAULT 100,
-                elo INTEGER DEFAULT 1000,
-                kills INTEGER DEFAULT 0,
-                wins INTEGER DEFAULT 0,
-                games_played INTEGER DEFAULT 0,
-                total_rewards INTEGER DEFAULT 0,
-                is_admin BOOLEAN DEFAULT FALSE,
-                is_banned BOOLEAN DEFAULT FALSE,
-                ban_reason TEXT,
-                banned_until TIMESTAMP,
-                banned_by VARCHAR(64),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                last_login TIMESTAMP,
-                last_game TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-            
-            CREATE TABLE IF NOT EXISTS rooms (
-                id VARCHAR(64) PRIMARY KEY,
-                type VARCHAR(32),
-                name VARCHAR(100),
-                max_seats INTEGER DEFAULT 8,
-                seat_price INTEGER DEFAULT 1,
-                reward_multiplier FLOAT DEFAULT 1.0,
-                status VARCHAR(32) DEFAULT 'waiting',
-                players JSONB DEFAULT '[]',
-                spectators JSONB DEFAULT '[]',
-                game_round INTEGER DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                stats JSONB DEFAULT '{}'
-            );
-            
-            CREATE TABLE IF NOT EXISTS matches (
-                id VARCHAR(64) PRIMARY KEY,
-                room_id VARCHAR(64),
-                winner_id VARCHAR(64),
-                players JSONB,
-                kill_feed JSONB,
-                start_time TIMESTAMP,
-                end_time TIMESTAMP,
-                duration INTEGER,
-                total_players INTEGER,
-                game_round INTEGER,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-            
-            CREATE TABLE IF NOT EXISTS server_config (
-                key VARCHAR(64) PRIMARY KEY,
-                value JSONB,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-            
-            CREATE TABLE IF NOT EXISTS visual_settings (
-                id VARCHAR(64) PRIMARY KEY,
-                event_key VARCHAR(64) UNIQUE,
-                image_url TEXT,
-                alt_text VARCHAR(255),
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-            
-            CREATE TABLE IF NOT EXISTS transactions (
-                id VARCHAR(64) PRIMARY KEY,
-                user_id VARCHAR(64),
-                type VARCHAR(32),
-                amount INTEGER,
-                balance_before INTEGER,
-                balance_after INTEGER,
-                description TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-            
-            CREATE INDEX IF NOT EXISTS idx_users_elo ON users(elo DESC);
-            CREATE INDEX IF NOT EXISTS idx_users_wins ON users(wins DESC);
-            CREATE INDEX IF NOT EXISTS idx_users_kills ON users(kills DESC);
-            CREATE INDEX IF NOT EXISTS idx_matches_room ON matches(room_id);
-            CREATE INDEX IF NOT EXISTS idx_matches_winner ON matches(winner_id);
-            CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id);
-            CREATE INDEX IF NOT EXISTS idx_transactions_created ON transactions(created_at DESC);
-        `);
-        logger.info('✅ Database schema initialized');
-    } catch (error) {
-        logger.error('Error initializing database:', { error: error.message });
+        logger.error('❌ Error initializing rooms:', error);
         throw error;
     }
 }
 
+// ================================================================
+// 📡 خادم Socket.io مع إعدادات متقدمة واحترافية
+// ================================================================
+const server = http.createServer(app);
+const io = socketIo(server, {
+    cors: {
+        origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*',
+        methods: ["GET", "POST", "OPTIONS"],
+        credentials: true,
+    },
+    transports: ['websocket', 'polling'],
+    pingTimeout: 90000,
+    pingInterval: 25000,
+    allowEIO3: true,
+    maxHttpBufferSize: 1e8,
+    perMessageDeflate: {
+        threshold: 1024,
+        zlib: { level: 9, memLevel: 9 }
+    },
+    cookie: {
+        name: 'io',
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+    },
+});
+
+// ================================================================
+// 🔐 دوال المصادقة والتوكن المتقدمة
+// ================================================================
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(64).toString('hex');
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || crypto.randomBytes(64).toString('hex');
+
+function generateTokens(userId) {
+    const token = jwt.sign(
+        { userId, type: 'access', timestamp: Date.now() },
+        JWT_SECRET,
+        { expiresIn: '7d', algorithm: 'HS256' }
+    );
+    const refreshToken = jwt.sign(
+        { userId, type: 'refresh', timestamp: Date.now() },
+        JWT_REFRESH_SECRET,
+        { expiresIn: '30d', algorithm: 'HS256' }
+    );
+    return { token, refreshToken };
+}
+
+function verifyToken(token, isRefresh = false) {
+    try {
+        return jwt.verify(token, isRefresh ? JWT_REFRESH_SECRET : JWT_SECRET, { algorithms: ['HS256'] });
+    } catch (error) {
+        if (error.name === 'TokenExpiredError') {
+            return { expired: true };
+        }
+        return null;
+    }
+}
+
+// ================================================================
+// 🔐 دوال مساعدة متقدمة
+// ================================================================
+async function getUserByTelegramId(telegramId) {
+    const result = await pool.query('SELECT * FROM users WHERE telegram_id = $1', [telegramId]);
+    return result.rows[0] || null;
+}
+
+async function getUserById(userId) {
+    const result = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+    return result.rows[0] || null;
+}
+
+async function createUser(telegramId, username, ip) {
+    const displayName = username || `User_${telegramId}`;
+    const email = `${telegramId}@telegram.user`;
+    const result = await pool.query(
+        `INSERT INTO users (telegram_id, telegram_username, username, email, balance, last_ip, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+         RETURNING *`,
+        [telegramId, username || '', displayName, email, 100, ip || null]
+    );
+    return result.rows[0];
+}
+
+async function createSession(userId, socketId, token, refreshToken, ip, userAgent, deviceId) {
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    const refreshExpiresAt = new Date();
+    refreshExpiresAt.setDate(refreshExpiresAt.getDate() + 30);
+
+    await pool.query(
+        `INSERT INTO sessions (user_id, socket_id, token, refresh_token, ip_address, user_agent, device_id, expires_at, refresh_expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [userId, socketId, token, refreshToken, ip, userAgent, deviceId || null, expiresAt, refreshExpiresAt]
+    );
+}
+
+async function updateSessionSocket(token, socketId) {
+    await pool.query(
+        'UPDATE sessions SET socket_id = $1, last_activity = CURRENT_TIMESTAMP WHERE token = $2',
+        [socketId, token]
+    );
+}
+
+async function getSessionByToken(token) {
+    const result = await pool.query(
+        'SELECT * FROM sessions WHERE token = $1 AND expires_at > CURRENT_TIMESTAMP',
+        [token]
+    );
+    return result.rows[0] || null;
+}
+
+async function getSocketByUserId(userId) {
+    const result = await pool.query(
+        'SELECT socket_id FROM sessions WHERE user_id = $1 AND socket_id IS NOT NULL ORDER BY created_at DESC LIMIT 1',
+        [userId]
+    );
+    return result.rows[0]?.socket_id || null;
+}
+
+async function logAudit(userId, action, details, ip, userAgent, severity = 'info') {
+    await pool.query(
+        `INSERT INTO audit_logs (user_id, action, details, ip_address, user_agent, severity)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [userId, action, details, ip, userAgent, severity]
+    );
+}
+
+async function createNotification(userId, type, title, message, data = null) {
+    await pool.query(
+        `INSERT INTO notifications (user_id, type, title, message, data)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [userId, type, title, message, data]
+    );
+}
+
+// ================================================================
+// 🎯 نظام الطوابير المتين (Anti-Cheat & Anti-Exploit)
+// ================================================================
+class ActionQueue {
+    constructor() {
+        this.queues = new Map();
+        this.processing = new Map();
+        this.locks = new Map();
+    }
+
+    async enqueue(actionId, userId, action, priority = 0) {
+        const key = `${userId}_${actionId}`;
+        
+        // التحقق من القفل
+        if (this.locks.has(key)) {
+            throw new Error('Action already in progress');
+        }
+
+        // إضافة إلى الطابور
+        if (!this.queues.has(key)) {
+            this.queues.set(key, []);
+        }
+        const queue = this.queues.get(key);
+        queue.push({ action, priority, timestamp: Date.now() });
+
+        // معالجة الطابور
+        await this.processQueue(key, userId);
+        return true;
+    }
+
+    async processQueue(key, userId) {
+        if (this.processing.has(key)) return;
+        this.processing.set(key, true);
+        this.locks.set(key, true);
+
+        try {
+            const queue = this.queues.get(key) || [];
+            while (queue.length > 0) {
+                const item = queue.shift();
+                try {
+                    await item.action();
+                } catch (error) {
+                    logger.error(`❌ Queue action failed for ${userId}:`, error);
+                    // إعادة المحاولة لمرة واحدة
+                    if (item.retryCount < 1) {
+                        item.retryCount = (item.retryCount || 0) + 1;
+                        queue.unshift(item);
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+                }
+            }
+        } finally {
+            this.processing.delete(key);
+            this.locks.delete(key);
+            this.queues.delete(key);
+        }
+    }
+
+    isLocked(userId, actionId) {
+        return this.locks.has(`${userId}_${actionId}`);
+    }
+
+    clear() {
+        this.queues.clear();
+        this.processing.clear();
+        this.locks.clear();
+    }
+}
+
+const actionQueue = new ActionQueue();
+
+// ================================================================
+// 📡 معالجات Socket.io المتقدمة
+// ================================================================
+io.use(async (socket, next) => {
+    const token = socket.handshake.auth.token;
+    if (token) {
+        try {
+            const decoded = verifyToken(token);
+            if (decoded && !decoded.expired) {
+                const session = await getSessionByToken(token);
+                if (session) {
+                    socket.userId = session.user_id;
+                    socket.token = token;
+                    socket.deviceId = socket.handshake.auth.deviceId || null;
+                    return next();
+                }
+            }
+        } catch (error) {
+            logger.error('❌ Socket auth error:', error);
+        }
+    }
+    
+    // المصادقة سيتم عبر حدث auth
+    next();
+});
+
+io.on('connection', (socket) => {
+    const ip = socket.handshake.address;
+    const userAgent = socket.handshake.headers['user-agent'] || 'Unknown';
+    const deviceId = socket.handshake.auth.deviceId || null;
+
+    logger.info(`🔌 New connection: ${socket.id} (${ip})`);
+
+    // ============================================================
+    // 🔐 المصادقة عبر تيليغرام (مع نظام طوابير)
+    // ============================================================
+    socket.on('auth', async (data) => {
+        try {
+            const { telegramId, username, token } = data;
+
+            // ============================================================
+            // محاولة إعادة الاتصال عبر التوكن (مع التحقق من الصلاحية)
+            // ============================================================
+            if (token) {
+                const decoded = verifyToken(token);
+                if (decoded && !decoded.expired) {
+                    const session = await getSessionByToken(token);
+                    if (session) {
+                        await updateSessionSocket(token, socket.id);
+
+                        const user = await getUserById(session.user_id);
+                        if (user) {
+                            const playerData = {
+                                userId: user.id,
+                                telegramId: user.telegram_id,
+                                username: user.username,
+                                balance: user.balance,
+                                isAdmin: user.is_admin || false,
+                                isBanned: user.is_banned || false,
+                                roomId: null,
+                                token: token,
+                                lastActivity: Date.now(),
+                                ip: ip,
+                                deviceId: deviceId,
+                            };
+                            players.set(socket.id, playerData);
+
+                            socket.emit('auth_success', {
+                                userId: user.id,
+                                telegramId: user.telegram_id,
+                                username: user.username,
+                                balance: user.balance,
+                                isAdmin: user.is_admin || false,
+                                isBanned: user.is_banned || false,
+                                gamesPlayed: user.games_played || 0,
+                                wins: user.wins || 0,
+                                totalKills: user.total_kills || 0,
+                                token: token,
+                                message: '🔄 تم إعادة الاتصال بنجاح!',
+                            });
+
+                            await logAudit(
+                                user.id,
+                                'reconnect',
+                                { socketId: socket.id, ip, deviceId },
+                                ip,
+                                userAgent
+                            );
+
+                            logger.info(`🔄 User reconnected: ${user.username}`);
+                            return;
+                        }
+                    }
+                }
+            }
+
+            // ============================================================
+            // مصادقة جديدة عبر تيليغرام (مع نظام طوابير)
+            // ============================================================
+            if (!telegramId) {
+                socket.emit('auth_error', { message: 'معرف تيليغرام مطلوب' });
+                return;
+            }
+
+            // التحقق من الحظر
+            const banCheck = await pool.query(
+                `SELECT b.* FROM bans b
+                 JOIN users u ON u.id = b.user_id
+                 WHERE u.telegram_id = $1 AND (b.expires_at IS NULL OR b.expires_at > CURRENT_TIMESTAMP)`,
+                [telegramId]
+            );
+
+            if (banCheck.rows.length > 0) {
+                const ban = banCheck.rows[0];
+                socket.emit('auth_error', {
+                    message: `🚫 تم حظر حسابك.\nالسبب: ${ban.reason || 'غير محدد'}\n${ban.expires_at ? `ينتهي: ${new Date(ban.expires_at).toLocaleDateString('ar')}` : 'دائم'}`,
+                    banned: true,
+                    reason: ban.reason,
+                    expiresAt: ban.expires_at,
+                });
+                return;
+            }
+
+            // معالجة المصادقة عبر الطابور
+            await actionQueue.enqueue('auth', telegramId, async () => {
+                // البحث عن المستخدم أو إنشاؤه
+                let user = await getUserByTelegramId(telegramId);
+                let isNewUser = false;
+
+                if (!user) {
+                    user = await createUser(telegramId, username, ip);
+                    isNewUser = true;
+                    logger.info(`👤 New user registered: ${user.username} (${telegramId})`);
+                } else {
+                    await pool.query(
+                        'UPDATE users SET last_active = CURRENT_TIMESTAMP, last_ip = $1 WHERE telegram_id = $2',
+                        [ip, telegramId]
+                    );
+                }
+
+                // إنشاء التوكنات
+                const { token: newToken, refreshToken } = generateTokens(user.id);
+
+                // إنشاء الجلسة
+                await createSession(
+                    user.id,
+                    socket.id,
+                    newToken,
+                    refreshToken,
+                    ip,
+                    userAgent,
+                    deviceId
+                );
+
+                // تخزين في الذاكرة
+                const playerData = {
+                    userId: user.id,
+                    telegramId: user.telegram_id,
+                    username: user.username,
+                    balance: user.balance,
+                    isAdmin: user.is_admin || false,
+                    isBanned: user.is_banned || false,
+                    roomId: null,
+                    token: newToken,
+                    lastActivity: Date.now(),
+                    ip: ip,
+                    deviceId: deviceId,
+                };
+                players.set(socket.id, playerData);
+
+                // تسجيل التدقيق
+                await logAudit(
+                    user.id,
+                    isNewUser ? 'register' : 'login',
+                    { socketId: socket.id, ip, deviceId, method: 'telegram' },
+                    ip,
+                    userAgent
+                );
+
+                // إرسال نجاح المصادقة
+                socket.emit('auth_success', {
+                    userId: user.id,
+                    telegramId: user.telegram_id,
+                    username: user.username,
+                    balance: user.balance,
+                    isAdmin: user.is_admin || false,
+                    isBanned: user.is_banned || false,
+                    gamesPlayed: user.games_played || 0,
+                    wins: user.wins || 0,
+                    totalKills: user.total_kills || 0,
+                    token: newToken,
+                    refreshToken: refreshToken,
+                    isNewUser: isNewUser,
+                    message: isNewUser ? '✅ تم إنشاء الحساب بنجاح!' : '✅ تم تسجيل الدخول بنجاح!',
+                });
+
+                // إرسال إشعار ترحيبي
+                if (isNewUser) {
+                    await createNotification(
+                        user.id,
+                        'welcome',
+                        '🎉 مرحباً بك في Battle Tanks!',
+                        'نتمنى لك معارك ممتعة وننتظر انتصاراتك! 🏆'
+                    );
+                }
+
+                logger.info(`✅ Authenticated: ${user.username} (${telegramId})`);
+            });
+
+        } catch (error) {
+            logger.error('❌ Auth error:', error);
+            socket.emit('auth_error', { message: 'فشلت المصادقة: ' + error.message });
+        }
+    });
+
+    // ============================================================
+    // 🔄 تحديث التوكن
+    // ============================================================
+    socket.on('refresh_token', async (data) => {
+        try {
+            const { refreshToken } = data;
+            if (!refreshToken) {
+                socket.emit('refresh_error', { message: 'Refresh token required' });
+                return;
+            }
+
+            const decoded = verifyToken(refreshToken, true);
+            if (!decoded || decoded.expired) {
+                socket.emit('refresh_error', { message: 'Invalid or expired refresh token' });
+                return;
+            }
+
+            const session = await pool.query(
+                'SELECT * FROM sessions WHERE refresh_token = $1 AND refresh_expires_at > CURRENT_TIMESTAMP',
+                [refreshToken]
+            );
+
+            if (session.rows.length === 0) {
+                socket.emit('refresh_error', { message: 'Refresh token expired' });
+                return;
+            }
+
+            const { token: newToken, refreshToken: newRefreshToken } = generateTokens(decoded.userId);
+
+            await pool.query(
+                `UPDATE sessions SET token = $1, refresh_token = $2, 
+                 expires_at = CURRENT_TIMESTAMP + INTERVAL '7 days', 
+                 refresh_expires_at = CURRENT_TIMESTAMP + INTERVAL '30 days' 
+                 WHERE refresh_token = $3`,
+                [newToken, newRefreshToken, refreshToken]
+            );
+
+            const player = players.get(socket.id);
+            if (player) {
+                player.token = newToken;
+            }
+
+            socket.emit('refresh_success', {
+                token: newToken,
+                refreshToken: newRefreshToken,
+            });
+
+        } catch (error) {
+            logger.error('❌ Refresh token error:', error);
+            socket.emit('refresh_error', { message: 'Failed to refresh token' });
+        }
+    });
+
+    // ============================================================
+    // 🏠 اللوبي
+    // ============================================================
+    socket.on('join_lobby', async () => {
+        const player = players.get(socket.id);
+        if (!player) {
+            socket.emit('error', { message: 'غير مصدق' });
+            return;
+        }
+
+        try {
+            // تحديث الرصيد من قاعدة البيانات
+            const result = await pool.query(
+                'SELECT balance, games_played, wins, total_kills, total_deaths, accuracy FROM users WHERE id = $1',
+                [player.userId]
+            );
+
+            if (result.rows.length > 0) {
+                player.balance = result.rows[0].balance;
+                player.gamesPlayed = result.rows[0].games_played || 0;
+                player.wins = result.rows[0].wins || 0;
+                player.totalKills = result.rows[0].total_kills || 0;
+                player.totalDeaths = result.rows[0].total_deaths || 0;
+                player.accuracy = result.rows[0].accuracy || 0;
+            }
+
+            // إرسال بيانات اللوبي
+            socket.emit('lobby_joined', {
+                balance: player.balance,
+                userId: player.userId,
+                username: player.username,
+                isAdmin: player.isAdmin,
+                gamesPlayed: player.gamesPlayed || 0,
+                wins: player.wins || 0,
+                totalKills: player.totalKills || 0,
+                totalDeaths: player.totalDeaths || 0,
+                accuracy: player.accuracy || 0,
+                isBanned: player.isBanned || false,
+            });
+
+            // إرسال قائمة الغرف
+            await sendRoomsList(socket);
+
+            // إرسال الإشعارات غير المقروءة
+            const notifications = await pool.query(
+                'SELECT * FROM notifications WHERE user_id = $1 AND is_read = FALSE ORDER BY created_at DESC LIMIT 10',
+                [player.userId]
+            );
+            if (notifications.rows.length > 0) {
+                socket.emit('notifications', { notifications: notifications.rows });
+            }
+
+        } catch (error) {
+            logger.error('❌ Lobby error:', error);
+            socket.emit('error', { message: 'فشل تحميل اللوبي' });
+        }
+    });
+
+    // ============================================================
+    // 📋 قائمة الغرف
+    // ============================================================
+    let lastRoomListRequest = 0;
+
+    socket.on('list_rooms', async () => {
+        const now = Date.now();
+        if (now - lastRoomListRequest < 2000) return;
+        lastRoomListRequest = now;
+        await sendRoomsList(socket);
+    });
+
+    async function sendRoomsList(targetSocket) {
+        try {
+            const result = await pool.query(
+                `SELECT id, name, type, max_seats, seat_price, status, players_count, map_id, map_name
+                 FROM rooms
+                 WHERE status = 'waiting'
+                 ORDER BY 
+                     CASE type
+                         WHEN 'غرفة المبتدئين' THEN 1
+                         WHEN 'غرفة المتقدمين' THEN 2
+                         WHEN 'غرفة المحترفين' THEN 3
+                         WHEN 'غرفة الأساطير' THEN 4
+                         ELSE 5
+                     END,
+                     created_at`
+            );
+
+            const roomsList = result.rows.map(room => ({
+                id: room.id,
+                name: room.name,
+                type: room.type,
+                maxSeats: room.max_seats,
+                seatPrice: room.seat_price,
+                players: room.players_count || 0,
+                status: room.status,
+                needed: room.max_seats - (room.players_count || 0),
+                mapId: room.map_id || 'default',
+                mapName: room.map_name || 'صحراء',
+                isFull: room.players_count >= room.max_seats,
+            }));
+
+            targetSocket.emit('rooms_list', { 
+                rooms: roomsList,
+                total: roomsList.length,
+                timestamp: Date.now(),
+            });
+
+        } catch (error) {
+            logger.error('❌ Error sending rooms list:', error);
+            targetSocket.emit('error', { message: 'فشل تحميل قائمة الغرف' });
+        }
+    }
+
+    async function sendRoomsListToAll() {
+        try {
+            const result = await pool.query(
+                `SELECT id, name, type, max_seats, seat_price, status, players_count, map_id, map_name
+                 FROM rooms
+                 WHERE status = 'waiting'
+                 ORDER BY 
+                     CASE type
+                         WHEN 'غرفة المبتدئين' THEN 1
+                         WHEN 'غرفة المتقدمين' THEN 2
+                         WHEN 'غرفة المحترفين' THEN 3
+                         WHEN 'غرفة الأساطير' THEN 4
+                         ELSE 5
+                     END,
+                     created_at`
+            );
+
+            const roomsList = result.rows.map(room => ({
+                id: room.id,
+                name: room.name,
+                type: room.type,
+                maxSeats: room.max_seats,
+                seatPrice: room.seat_price,
+                players: room.players_count || 0,
+                status: room.status,
+                needed: room.max_seats - (room.players_count || 0),
+                mapId: room.map_id || 'default',
+                mapName: room.map_name || 'صحراء',
+                isFull: room.players_count >= room.max_seats,
+            }));
+
+            io.emit('rooms_list', { 
+                rooms: roomsList,
+                total: roomsList.length,
+                timestamp: Date.now(),
+            });
+
+        } catch (error) {
+            logger.error('❌ Error sending rooms list to all:', error);
+        }
+    }
+
+    // ============================================================
+    // 🎮 الانضمام إلى غرفة (مع أقفال متعددة ونظام طوابير)
+    // ============================================================
+    socket.on('join_room', async (data) => {
+        const player = players.get(socket.id);
+        if (!player) {
+            socket.emit('error', { message: 'غير مصدق' });
+            return;
+        }
+
+        // ============================================================
+        // قفل لمنع تكرار الطلبات (Anti-Spam)
+        // ============================================================
+        const lockKey = `join_${player.userId}`;
+        if (joinLocks.has(lockKey)) {
+            socket.emit('error', { message: 'جاري معالجة طلبك، انتظر قليلاً...' });
+            return;
+        }
+        joinLocks.set(lockKey, true);
+        setTimeout(() => joinLocks.delete(lockKey), 5000);
+
+        try {
+            const { roomId } = data;
+
+            // معالجة الانضمام عبر الطابور
+            await actionQueue.enqueue('join_room', player.userId, async () => {
+                // ============================================================
+                // التحقق من الغرفة (مع قفل على مستوى قاعدة البيانات)
+                // ============================================================
+                const roomResult = await pool.query(
+                    'SELECT * FROM rooms WHERE id = $1 FOR UPDATE',
+                    [roomId]
+                );
+
+                if (roomResult.rows.length === 0) {
+                    socket.emit('error', { message: 'الغرفة غير موجودة' });
+                    return;
+                }
+
+                const room = roomResult.rows[0];
+
+                // التحقق من حالة الغرفة
+                if (room.status !== 'waiting') {
+                    socket.emit('error', { message: 'المعركة جارية، انتظر حتى تنتهي' });
+                    return;
+                }
+
+                // التحقق من العدد
+                if (room.players_count >= room.max_seats) {
+                    socket.emit('error', { message: 'الغرفة ممتلئة' });
+                    return;
+                }
+
+                // التحقق من وجود اللاعب بالفعل في الغرفة
+                const existingPlayer = await pool.query(
+                    'SELECT * FROM room_players WHERE room_id = $1 AND user_id = $2 AND left_at IS NULL',
+                    [roomId, player.userId]
+                );
+
+                if (existingPlayer.rows.length > 0) {
+                    socket.emit('error', { message: 'أنت بالفعل في هذه الغرفة' });
+                    return;
+                }
+
+                // ============================================================
+                // التحقق من الرصيد (مع قفل)
+                // ============================================================
+                const userResult = await pool.query(
+                    'SELECT balance FROM users WHERE id = $1 FOR UPDATE',
+                    [player.userId]
+                );
+
+                const balance = userResult.rows[0]?.balance || 0;
+                if (balance < room.seat_price) {
+                    socket.emit('error', {
+                        message: `⚠️ رصيدك غير كافٍ!\nسعر المقعد: ${room.seat_price}$\nرصيدك الحالي: ${balance}$`
+                    });
+                    return;
+                }
+
+                // ============================================================
+                // خصم الرصيد وتسجيل المعاملة
+                // ============================================================
+                const newBalance = balance - room.seat_price;
+                await pool.query(
+                    'UPDATE users SET balance = $1 WHERE id = $2',
+                    [newBalance, player.userId]
+                );
+
+                await pool.query(
+                    `INSERT INTO transactions (user_id, type, amount, balance_after, description, room_id)
+                     VALUES ($1, $2, $3, $4, $5, $6)`,
+                    [player.userId, 'game_entry', room.seat_price, newBalance, `دخول إلى ${room.name}`, roomId]
+                );
+
+                // ============================================================
+                // إضافة اللاعب إلى الغرفة
+                // ============================================================
+                await pool.query(
+                    `INSERT INTO room_players (room_id, user_id, socket_id, paid_amount, team, position_x, position_z)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                    [roomId, player.userId, socket.id, room.seat_price, 1, 0, 0]
+                );
+
+                // تحديث عدد اللاعبين
+                const newCount = room.players_count + 1;
+                await pool.query(
+                    'UPDATE rooms SET players_count = $1 WHERE id = $2',
+                    [newCount, roomId]
+                );
+
+                // تحديث الذاكرة المؤقتة
+                player.roomId = roomId;
+                player.balance = newBalance;
+                player.team = 1;
+                socket.join(roomId);
+
+                // ============================================================
+                // إرسال تأكيد الانضمام
+                // ============================================================
+                const needed = room.max_seats - newCount;
+                socket.emit('room_joined', {
+                    roomId: roomId,
+                    roomName: room.name,
+                    roomType: room.type,
+                    balance: newBalance,
+                    playersCount: newCount,
+                    maxSeats: room.max_seats,
+                    seatPrice: room.seat_price,
+                    needed: needed,
+                    mapId: room.map_id || 'default',
+                    mapName: room.map_name || 'صحراء',
+                    isFull: newCount >= room.max_seats,
+                    message: `✅ تم الانضمام إلى ${room.name}\n💰 تم خصم ${room.seat_price}$\n👥 ${newCount}/${room.max_seats}\n⏳ ينتظر ${needed} لاعب(ين)`,
+                });
+
+                // إعلام باقي اللاعبين في الغرفة
+                io.to(roomId).emit('player_joined', {
+                    userId: player.userId,
+                    username: player.username,
+                    playersCount: newCount,
+                    maxSeats: room.max_seats,
+                    needed: needed,
+                    team: 1,
+                });
+
+                // تحديث قائمة الغرف
+                await sendRoomsListToAll();
+
+                // تسجيل التدقيق
+                await logAudit(
+                    player.userId,
+                    'join_room',
+                    { roomId, roomName: room.name, price: room.seat_price },
+                    ip,
+                    userAgent
+                );
+
+                logger.info(`👥 ${player.username} joined ${room.name} (${newCount}/${room.max_seats})`);
+
+                // ============================================================
+                // بدء اللعبة إذا اكتملت الغرفة
+                // ============================================================
+                if (newCount >= room.max_seats) {
+                    await startGame(roomId);
+                }
+
+            });
+
+        } catch (error) {
+            logger.error('❌ Join room error:', error);
+            socket.emit('error', { message: 'فشل الانضمام إلى الغرفة: ' + error.message });
+        } finally {
+            joinLocks.delete(lockKey);
+        }
+    });
+
+    // ============================================================
+    // 🚪 مغادرة الغرفة (مع إعادة الرصيد)
+    // ============================================================
+    socket.on('leave_room', async () => {
+        const player = players.get(socket.id);
+        if (!player || !player.roomId) {
+            socket.emit('error', { message: 'أنت لست في أي غرفة' });
+            return;
+        }
+
+        try {
+            const roomId = player.roomId;
+
+            // التحقق من حالة الغرفة
+            const roomResult = await pool.query(
+                'SELECT status, seat_price, name FROM rooms WHERE id = $1',
+                [roomId]
+            );
+
+            if (roomResult.rows.length === 0) {
+                player.roomId = null;
+                return;
+            }
+
+            const room = roomResult.rows[0];
+
+            // لا يمكن المغادرة أثناء المعركة
+            if (room.status !== 'waiting') {
+                socket.emit('error', { message: 'لا يمكن مغادرة الغرفة أثناء المعركة' });
+                return;
+            }
+
+            // إزالة من room_players
+            const rpResult = await pool.query(
+                `DELETE FROM room_players
+                 WHERE room_id = $1 AND user_id = $2
+                 RETURNING paid_amount`,
+                [roomId, player.userId]
+            );
+
+            if (rpResult.rows.length > 0) {
+                const paidAmount = rpResult.rows[0].paid_amount || room.seat_price;
+
+                // إعادة الرصيد
+                await pool.query(
+                    'UPDATE users SET balance = balance + $1 WHERE id = $2',
+                    [paidAmount, player.userId]
+                );
+
+                // تحديث الرصيد في الذاكرة
+                const balanceResult = await pool.query(
+                    'SELECT balance FROM users WHERE id = $1',
+                    [player.userId]
+                );
+                player.balance = balanceResult.rows[0]?.balance || 100;
+
+                // تسجيل المعاملة
+                await pool.query(
+                    `INSERT INTO transactions (user_id, type, amount, balance_after, description, room_id)
+                     VALUES ($1, $2, $3, $4, $5, $6)`,
+                    [player.userId, 'refund', paidAmount, player.balance, `مغادرة ${room.name}`, roomId]
+                );
+            }
+
+            // تحديث عدد اللاعبين
+            await pool.query(
+                'UPDATE rooms SET players_count = players_count - 1 WHERE id = $1',
+                [roomId]
+            );
+
+            // تحديث الذاكرة
+            player.roomId = null;
+            socket.leave(roomId);
+
+            socket.emit('room_left', {
+                roomName: room.name,
+                balance: player.balance,
+                message: '🚪 تم مغادرة الغرفة بنجاح\n💰 تم إعادة الرصيد',
+            });
+
+            // إعلام باقي اللاعبين
+            io.to(roomId).emit('player_left', {
+                userId: player.userId,
+                username: player.username,
+            });
+
+            await sendRoomsListToAll();
+            logger.info(`🚪 ${player.username} left room ${roomId}`);
+
+        } catch (error) {
+            logger.error('❌ Leave room error:', error);
+            socket.emit('error', { message: 'فشل مغادرة الغرفة' });
+        }
+    });
+
+    // ============================================================
+    // 🎮 بدء اللعبة (مع توزيع متقدم للفرق)
+    // ============================================================
+    async function startGame(roomId) {
+        try {
+            logger.info(`🎮 Starting game in room ${roomId}`);
+
+            // تحديث حالة الغرفة
+            await pool.query(
+                'UPDATE rooms SET status = $1, started_at = CURRENT_TIMESTAMP WHERE id = $2',
+                ['active', roomId]
+            );
+
+            // جلب اللاعبين
+            const playersResult = await pool.query(
+                `SELECT rp.*, u.username, u.id as user_id, u.balance
+                 FROM room_players rp
+                 JOIN users u ON rp.user_id = u.id
+                 WHERE rp.room_id = $1 AND rp.left_at IS NULL`,
+                [roomId]
+            );
+
+            const roomPlayers = playersResult.rows;
+
+            if (roomPlayers.length < 2) {
+                logger.warn(`⚠️ Not enough players in room ${roomId}, cancelling game start`);
+                await resetRoom(roomId);
+                return;
+            }
+
+            // ============================================================
+            // توزيع الفرق بشكل متقدم (توزيع متوازن)
+            // ============================================================
+            const teamSize = Math.floor(roomPlayers.length / 2);
+            const shuffled = [...roomPlayers].sort(() => Math.random() - 0.5);
+            
+            // توزيع بناءً على المستوى (إحصائيات)
+            const sorted = [...roomPlayers].sort((a, b) => 
+                (b.wins || 0) - (a.wins || 0) || (b.games_played || 0) - (a.games_played || 0)
+            );
+
+            const team1 = [];
+            const team2 = [];
+            
+            for (let i = 0; i < sorted.length; i++) {
+                if (i % 2 === 0) {
+                    team1.push(sorted[i]);
+                } else {
+                    team2.push(sorted[i]);
+                }
+            }
+
+            // مواقع البداية حسب الخريطة
+            const startPositions = [
+                { x: -120, z: -80, team: 1 },
+                { x: 120, z: 80, team: 2 },
+                { x: -120, z: 80, team: 1 },
+                { x: 120, z: -80, team: 2 },
+                { x: -150, z: 0, team: 1 },
+                { x: 150, z: 0, team: 2 },
+                { x: -80, z: -120, team: 1 },
+                { x: 80, z: 120, team: 2 },
+                { x: -180, z: -60, team: 1 },
+                { x: 180, z: 60, team: 2 },
+                { x: -60, z: -180, team: 1 },
+                { x: 60, z: 180, team: 2 },
+            ];
+
+            const playerData = [];
+            let posIndex = 0;
+
+            // تحديث الفرق للمشاركين
+            for (const player of roomPlayers) {
+                const isTeam1 = team1.some(p => p.user_id === player.user_id);
+                const team = isTeam1 ? 1 : 2;
+                const pos = startPositions[posIndex % startPositions.length];
+                posIndex++;
+
+                await pool.query(
+                    `UPDATE room_players
+                     SET team = $1, position_x = $2, position_z = $3, health = 100, is_alive = TRUE
+                     WHERE room_id = $4 AND user_id = $5`,
+                    [team, pos.x, pos.z, roomId, player.user_id]
+                );
+
+                playerData.push({
+                    userId: player.user_id,
+                    username: player.username,
+                    team: team,
+                    position: { x: pos.x, z: pos.z },
+                    health: 100,
+                    balance: player.balance,
+                    kills: 0,
+                    deaths: 0,
+                });
+            }
+
+            // ============================================================
+            // إرسال بدء اللعبة لكل لاعب (مع بيانات متقدمة)
+            // ============================================================
+            const roomInfo = rooms.get(roomId);
+            
+            for (const player of roomPlayers) {
+                const playerInfo = playerData.find(p => p.userId === player.user_id);
+                const socketId = player.socket_id;
+
+                if (socketId) {
+                    io.to(socketId).emit('game_start', {
+                        roomId: roomId,
+                        roomName: roomInfo?.name || 'المعركة',
+                        mapId: roomInfo?.mapId || 'desert',
+                        mapName: roomInfo?.mapName || 'صحراء',
+                        gameMode: roomInfo?.gameMode || 'team_deathmatch',
+                        players: playerData.map(p => ({
+                            userId: p.userId,
+                            username: p.username,
+                            team: p.team,
+                            health: p.health,
+                        })),
+                        yourTeam: playerInfo?.team || 1,
+                        position: playerInfo?.position || { x: 0, z: 0 },
+                        health: 100,
+                        startTime: Date.now(),
+                        duration: roomInfo?.duration || 300,
+                        maxScore: roomInfo?.maxScore || 50,
+                        team1Players: team1.map(p => p.username),
+                        team2Players: team2.map(p => p.username),
+                    });
+                }
+            }
+
+            // إعلام جميع اللاعبين في الغرفة
+            io.to(roomId).emit('game_started', {
+                roomId: roomId,
+                playersCount: roomPlayers.length,
+                teams: {
+                    team1: team1.map(p => p.username),
+                    team2: team2.map(p => p.username),
+                },
+            });
+
+            // ============================================================
+            // بدء تحديثات حالة اللعبة (كل 33ms = 30 FPS)
+            // ============================================================
+            let gameState = {
+                roomId: roomId,
+                players: playerData,
+                startTime: Date.now(),
+                lastUpdate: Date.now(),
+                isActive: true,
+                team1Score: 0,
+                team2Score: 0,
+            };
+
+            gameStates.set(roomId, gameState);
+
+            const interval = setInterval(async () => {
+                try {
+                    // التحقق من أن الغرفة لا تزال نشطة
+                    const statusResult = await pool.query(
+                        'SELECT status FROM rooms WHERE id = $1',
+                        [roomId]
+                    );
+
+                    if (statusResult.rows.length === 0 || statusResult.rows[0].status !== 'active') {
+                        clearInterval(interval);
+                        gameStates.delete(roomId);
+                        return;
+                    }
+
+                    // جلب مواقع اللاعبين من قاعدة البيانات
+                    const posResult = await pool.query(
+                        `SELECT user_id, position_x, position_z, rotation, health, team, is_alive, kills, deaths
+                         FROM room_players
+                         WHERE room_id = $1 AND left_at IS NULL`,
+                        [roomId]
+                    );
+
+                    const playersUpdate = posResult.rows
+                        .filter(p => p.is_alive)
+                        .map(p => ({
+                            userId: p.user_id,
+                            position: { x: p.position_x, z: p.position_z },
+                            rotation: p.rotation || 0,
+                            health: p.health || 100,
+                            team: p.team,
+                            isAlive: p.is_alive,
+                            kills: p.kills || 0,
+                            deaths: p.deaths || 0,
+                        }));
+
+                    // تحديث حالة اللعبة
+                    const team1Alive = posResult.rows.filter(p => p.team === 1 && p.is_alive).length;
+                    const team2Alive = posResult.rows.filter(p => p.team === 2 && p.is_alive).length;
+
+                    // إرسال تحديث إلى جميع اللاعبين في الغرفة
+                    io.to(roomId).emit('game_state_update', {
+                        players: playersUpdate,
+                        team1Alive: team1Alive,
+                        team2Alive: team2Alive,
+                        timestamp: Date.now(),
+                    });
+
+                } catch (error) {
+                    logger.error('❌ Game state update error:', error);
+                }
+            }, 33); // ~30 FPS
+
+            roomIntervals.set(roomId, interval);
+
+            // ============================================================
+            // جدولة نهاية اللعبة (حسب المدة)
+            // ============================================================
+            const gameDuration = (roomInfo?.duration || 300) * 1000;
+            const timer = setTimeout(async () => {
+                await endGame(roomId, '⏰ انتهت مدة المعركة!');
+            }, gameDuration);
+
+            roomTimers.set(roomId, timer);
+
+            logger.info(`✅ Game started in room ${roomId} with ${roomPlayers.length} players`);
+
+        } catch (error) {
+            logger.error('❌ Start game error:', error);
+        }
+    }
+
+    // ============================================================
+    // 🏆 إنهاء اللعبة (مع توزيع المكافآت المتقدمة)
+    // ============================================================
+    async function endGame(roomId, reason) {
+        try {
+            logger.info(`🏆 Ending game in room ${roomId}`);
+
+            // إزالة المؤقتات
+            if (roomTimers.has(roomId)) {
+                clearTimeout(roomTimers.get(roomId));
+                roomTimers.delete(roomId);
+            }
+
+            if (roomIntervals.has(roomId)) {
+                clearInterval(roomIntervals.get(roomId));
+                roomIntervals.delete(roomId);
+            }
+
+            const room = rooms.get(roomId);
+            if (room && room.gameInterval) {
+                clearInterval(room.gameInterval);
+                room.gameInterval = null;
+            }
+
+            // جلب اللاعبين مع إحصائياتهم
+            const playersResult = await pool.query(
+                `SELECT rp.*, u.username, u.id as user_id
+                 FROM room_players rp
+                 JOIN users u ON rp.user_id = u.id
+                 WHERE rp.room_id = $1 AND rp.left_at IS NULL`,
+                [roomId]
+            );
+
+            const alivePlayers = playersResult.rows.filter(p => p.is_alive && p.health > 0);
+
+            // ============================================================
+            // تحديد الفائز (نظام متقدم)
+            // ============================================================
+            let winnerTeam = null;
+            let winnerName = 'تعادل';
+            let team1Score = 0;
+            let team2Score = 0;
+
+            // حساب النقاط
+            for (const p of playersResult.rows) {
+                if (p.team === 1) {
+                    team1Score += (p.kills || 0) * 10 + (p.damage_dealt || 0) / 100;
+                } else {
+                    team2Score += (p.kills || 0) * 10 + (p.damage_dealt || 0) / 100;
+                }
+            }
+
+            if (team1Score > team2Score) {
+                winnerTeam = 1;
+                winnerName = 'الفريق الأول 🟢';
+            } else if (team2Score > team1Score) {
+                winnerTeam = 2;
+                winnerName = 'الفريق الثاني 🔴';
+            } else {
+                // في حالة التعادل، الفريق الذي لديه المزيد من اللاعبين الأحياء
+                const aliveTeam1 = alivePlayers.filter(p => p.team === 1).length;
+                const aliveTeam2 = alivePlayers.filter(p => p.team === 2).length;
+                if (aliveTeam1 > aliveTeam2) {
+                    winnerTeam = 1;
+                    winnerName = 'الفريق الأول 🟢 (حسم بالصحة)';
+                } else if (aliveTeam2 > aliveTeam1) {
+                    winnerTeam = 2;
+                    winnerName = 'الفريق الثاني 🔴 (حسم بالصحة)';
+                } else {
+                    winnerName = 'تعادل تام 🤝';
+                }
+            }
+
+            // ============================================================
+            // توزيع المكافآت
+            // ============================================================
+            const baseReward = 10;
+            const killBonus = 2;
+            const damageBonus = 1;
+
+            const playerUpdates = [];
+
+            for (const player of playersResult.rows) {
+                const isWinner = (player.team === winnerTeam && player.is_alive);
+                const kills = player.kills || 0;
+                const damage = player.damage_dealt || 0;
+                
+                let reward = 0;
+                if (isWinner) {
+                    reward = baseReward + (kills * killBonus) + Math.floor(damage / 200 * damageBonus);
+                } else if (kills > 0) {
+                    reward = Math.floor(kills * killBonus / 2);
+                }
+
+                // تحديث إحصائيات المستخدم
+                await pool.query(
+                    `SELECT update_user_stats($1, $2, $3, $4, $5, $6, $7, $8)`,
+                    [
+                        player.user_id,
+                        kills,
+                        player.deaths || 0,
+                        0, // assists
+                        damage,
+                        player.shots_fired || 0,
+                        player.shots_hit || 0,
+                        isWinner,
+                        Math.floor((Date.now() - (room?.startTime || Date.now())) / 1000)
+                    ]
+                );
+
+                // تحديث الرصيد
+                let newBalance = 0;
+                if (reward > 0) {
+                    const balanceResult = await pool.query(
+                        'UPDATE users SET balance = balance + $1 WHERE id = $2 RETURNING balance',
+                        [reward, player.user_id]
+                    );
+                    newBalance = balanceResult.rows[0]?.balance || 0;
+
+                    await pool.query(
+                        `INSERT INTO transactions (user_id, type, amount, balance_after, description, room_id)
+                         VALUES ($1, $2, $3, $4, $5, $6)`,
+                        [player.user_id, 'game_reward', reward, newBalance, `مكافأة من ${room.name}`, roomId]
+                    );
+                } else {
+                    const balanceResult = await pool.query(
+                        'SELECT balance FROM users WHERE id = $1',
+                        [player.user_id]
+                    );
+                    newBalance = balanceResult.rows[0]?.balance || 0;
+                }
+
+                playerUpdates.push({
+                    userId: player.user_id,
+                    socketId: player.socket_id,
+                    isWinner: isWinner,
+                    reward: reward,
+                    newBalance: newBalance,
+                    team: player.team,
+                    kills: kills,
+                    deaths: player.deaths || 0,
+                    damage: damage,
+                });
+            }
+
+            // ============================================================
+            // إرسال إشعار النهاية لكل لاعب
+            // ============================================================
+            const duration = Math.floor((Date.now() - (room?.startTime || Date.now())) / 1000);
+
+            for (const update of playerUpdates) {
+                if (update.socketId) {
+                    io.to(update.socketId).emit('game_ended', {
+                        message: reason || 'انتهت المعركة!',
+                        winner: winnerName,
+                        winnerTeam: winnerTeam,
+                        reward: update.reward,
+                        yourBalance: update.newBalance,
+                        yourTeam: update.team === 1 ? 'الفريق الأول 🟢' : 'الفريق الثاني 🔴',
+                        duration: duration,
+                        isWinner: update.isWinner,
+                        kills: update.kills,
+                        deaths: update.deaths,
+                        damage: update.damage,
+                    });
+                }
+            }
+
+            // إعلام جميع اللاعبين في الغرفة
+            io.to(roomId).emit('game_finished', {
+                roomId: roomId,
+                winner: winnerName,
+                winnerTeam: winnerTeam,
+                duration: duration,
+                team1Score: team1Score,
+                team2Score: team2Score,
+            });
+
+            // تحديث حالة الغرفة
+            await pool.query(
+                `UPDATE rooms
+                 SET status = 'ended', ended_at = CURRENT_TIMESTAMP, winner_team = $1, game_data = $2
+                 WHERE id = $3`,
+                [winnerTeam, JSON.stringify({ team1Score, team2Score, duration }), roomId]
+            );
+
+            logger.info(`🏆 Game ended in room ${roomId}, winner: ${winnerName}`);
+
+            // ============================================================
+            // إعادة تعيين الغرفة بعد 5 ثوانٍ
+            // ============================================================
+            setTimeout(async () => {
+                await resetRoom(roomId);
+            }, 5000);
+
+            // تحديث قائمة الغرف
+            await sendRoomsListToAll();
+
+        } catch (error) {
+            logger.error('❌ End game error:', error);
+        }
+    }
+
+    // ============================================================
+    // 🔄 إعادة تعيين الغرفة
+    // ============================================================
+    async function resetRoom(roomId) {
+        try {
+            logger.info(`🔄 Resetting room ${roomId}`);
+
+            // حذف جميع اللاعبين من الغرفة
+            await pool.query(
+                `UPDATE room_players SET left_at = CURRENT_TIMESTAMP WHERE room_id = $1 AND left_at IS NULL`,
+                [roomId]
+            );
+
+            // إعادة تعيين حالة الغرفة
+            await pool.query(
+                `UPDATE rooms
+                 SET status = 'waiting', players_count = 0, started_at = NULL, ended_at = NULL, winner_team = NULL
+                 WHERE id = $1`,
+                [roomId]
+            );
+
+            // إزالة من الذاكرة المؤقتة
+            if (rooms.has(roomId)) {
+                const room = rooms.get(roomId);
+                room.status = 'waiting';
+                room.players = [];
+                room.playersCount = 0;
+                room.startTime = null;
+                room.gameInterval = null;
+            }
+
+            // إزالة من gameStates
+            gameStates.delete(roomId);
+
+            logger.info(`✅ Room ${roomId} reset successfully`);
+
+            // إعلام اللاعبين
+            io.to(roomId).emit('room_reset', {
+                roomId: roomId,
+                message: '✅ الغرفة جاهزة لمعركة جديدة!',
+            });
+
+            await sendRoomsListToAll();
+
+        } catch (error) {
+            logger.error('❌ Reset room error:', error);
+        }
+    }
+
+    // ============================================================
+    // 🎯 أحداث اللعبة (مع تحقق من الصلاحية)
+    // ============================================================
+
+    // حركة اللاعب (مع تحقق من السرعة لمنع الغش)
+    let lastMoveTime = new Map();
+
+    socket.on('move', async (data) => {
+        const player = players.get(socket.id);
+        if (!player || !player.roomId) return;
+
+        // التحقق من سرعة الحركة (منع التليفورت)
+        const now = Date.now();
+        const lastMove = lastMoveTime.get(socket.id) || 0;
+        if (now - lastMove < 16) return; // ~60 FPS
+        lastMoveTime.set(socket.id, now);
+
+        try {
+            // التحقق من أن اللاعب في الغرفة
+            const check = await pool.query(
+                'SELECT is_alive FROM room_players WHERE room_id = $1 AND user_id = $2',
+                [player.roomId, player.userId]
+            );
+
+            if (check.rows.length === 0 || !check.rows[0].is_alive) return;
+
+            // تحديث الموقع
+            await pool.query(
+                `UPDATE room_players
+                 SET position_x = $1, position_z = $2, rotation = $3
+                 WHERE room_id = $4 AND user_id = $5`,
+                [data.position.x, data.position.z, data.rotation || 0, player.roomId, player.userId]
+            );
+
+            // بث الحركة للآخرين (مع تنعيم)
+            socket.to(player.roomId).emit('player_moved', {
+                userId: player.userId,
+                position: data.position,
+                rotation: data.rotation,
+                timestamp: now,
+            });
+
+        } catch (error) {
+            logger.error('❌ Move error:', error);
+        }
+    });
+
+    // إطلاق النار (مع تحقق من التباطؤ)
+    let lastShotTime = new Map();
+
+    socket.on('shoot', (data) => {
+        const player = players.get(socket.id);
+        if (!player || !player.roomId) return;
+
+        // التحقق من معدل الإطلاق (منع الغش)
+        const now = Date.now();
+        const lastShot = lastShotTime.get(socket.id) || 0;
+        if (now - lastShot < 500) return; // 2 طلقة في الثانية كحد أقصى
+        lastShotTime.set(socket.id, now);
+
+        // تحديث عدد الطلقات
+        pool.query(
+            'UPDATE room_players SET shots_fired = shots_fired + 1 WHERE room_id = $1 AND user_id = $2',
+            [player.roomId, player.userId]
+        ).catch(err => logger.error('❌ Shot update error:', err));
+
+        socket.to(player.roomId).emit('player_shot', {
+            userId: player.userId,
+            position: data.position,
+            direction: data.direction,
+            bulletId: data.bulletId || `${player.userId}_${now}`,
+            timestamp: now,
+        });
+    });
+
+    // ضرر (مع تحقق متقدم)
+    socket.on('damage', async (data) => {
+        const player = players.get(socket.id);
+        if (!player || !player.roomId) return;
+
+        try {
+            const { targetId, damage, weaponType } = data;
+
+            // التحقق من أن الضرر معقول (منع الغش)
+            if (damage > 100 || damage < 1) {
+                logger.warn(`⚠️ Suspicious damage value from ${player.username}: ${damage}`);
+                return;
+            }
+
+            // التحقق من أن الهدف موجود
+            const targetCheck = await pool.query(
+                'SELECT is_alive, team, health FROM room_players WHERE room_id = $1 AND user_id = $2',
+                [player.roomId, targetId]
+            );
+
+            if (targetCheck.rows.length === 0 || !targetCheck.rows[0].is_alive) return;
+
+            const target = targetCheck.rows[0];
+            
+            // منع إيذاء الزملاء (إذا كان الفريق نفسه)
+            if (target.team === player.team) {
+                return;
+            }
+
+            // تحديث صحة الهدف
+            const result = await pool.query(
+                `UPDATE room_players
+                 SET health = GREATEST(0, health - $1), damage_taken = damage_taken + $1
+                 WHERE room_id = $2 AND user_id = $3 AND is_alive = TRUE
+                 RETURNING health`,
+                [damage, player.roomId, targetId]
+            );
+
+            if (result.rows.length > 0) {
+                const newHealth = result.rows[0].health;
+
+                // تحديث ضرر المهاجم
+                await pool.query(
+                    `UPDATE room_players SET damage_dealt = damage_dealt + $1, shots_hit = shots_hit + 1
+                     WHERE room_id = $2 AND user_id = $3`,
+                    [damage, player.roomId, player.userId]
+                );
+
+                // إرسال تحديث الصحة
+                io.to(player.roomId).emit('health_update', {
+                    userId: targetId,
+                    health: newHealth,
+                    damage: damage,
+                    attackerId: player.userId,
+                });
+
+                // إذا مات اللاعب
+                if (newHealth <= 0) {
+                    await pool.query(
+                        `UPDATE room_players SET is_alive = FALSE, deaths = deaths + 1
+                         WHERE room_id = $1 AND user_id = $2`,
+                        [player.roomId, targetId]
+                    );
+
+                    await pool.query(
+                        `UPDATE room_players SET kills = kills + 1
+                         WHERE room_id = $1 AND user_id = $2`,
+                        [player.roomId, player.userId]
+                    );
+
+                    io.to(player.roomId).emit('player_eliminated', {
+                        userId: targetId,
+                        killerId: player.userId,
+                        killerName: player.username,
+                        position: data.position,
+                    });
+
+                    // إعلام الهدف بأنه مات
+                    const targetSocket = await getSocketByUserId(targetId);
+                    if (targetSocket) {
+                        io.to(targetSocket).emit('you_were_eliminated', {
+                            message: '💀 لقد تم تدمير دبابتك!',
+                            killerId: player.userId,
+                            killerName: player.username,
+                        });
+                    }
+
+                    // التحقق من انتهاء اللعبة
+                    const aliveResult = await pool.query(
+                        `SELECT COUNT(*) FROM room_players
+                         WHERE room_id = $1 AND is_alive = TRUE AND left_at IS NULL`,
+                        [player.roomId]
+                    );
+
+                    if (parseInt(aliveResult.rows[0].count) <= 1) {
+                        await endGame(player.roomId, '🏆 انتهت المعركة!');
+                    }
+                }
+            }
+
+        } catch (error) {
+            logger.error('❌ Damage error:', error);
+        }
+    });
+
+    // ============================================================
+    // 📊 طلب الإحصائيات المتقدمة
+    // ============================================================
+    socket.on('get_stats', async () => {
+        const player = players.get(socket.id);
+        if (!player) return;
+
+        try {
+            const result = await pool.query(
+                `SELECT * FROM get_player_stats($1)`,
+                [player.userId]
+            );
+
+            if (result.rows.length > 0) {
+                socket.emit('stats_response', {
+                    stats: result.rows[0],
+                    balance: player.balance,
+                });
+            }
+
+        } catch (error) {
+            logger.error('❌ Stats error:', error);
+            socket.emit('error', { message: 'فشل تحميل الإحصائيات' });
+        }
+    });
+
+    // ============================================================
+    // 💰 طلب سجل المعاملات
+    // ============================================================
+    socket.on('get_transactions', async (data) => {
+        const player = players.get(socket.id);
+        if (!player) return;
+
+        try {
+            const limit = data?.limit || 20;
+            const offset = data?.offset || 0;
+
+            const result = await pool.query(
+                `SELECT type, amount, balance_after, description, room_id, created_at
+                 FROM transactions
+                 WHERE user_id = $1
+                 ORDER BY created_at DESC
+                 LIMIT $2 OFFSET $3`,
+                [player.userId, limit, offset]
+            );
+
+            const countResult = await pool.query(
+                'SELECT COUNT(*) FROM transactions WHERE user_id = $1',
+                [player.userId]
+            );
+
+            socket.emit('transactions_response', {
+                transactions: result.rows,
+                total: parseInt(countResult.rows[0].count),
+                limit: limit,
+                offset: offset,
+            });
+
+        } catch (error) {
+            logger.error('❌ Transactions error:', error);
+            socket.emit('error', { message: 'فشل تحميل المعاملات' });
+        }
+    });
+
+    // ============================================================
+    // 🔔 طلب الإشعارات
+    // ============================================================
+    socket.on('get_notifications', async () => {
+        const player = players.get(socket.id);
+        if (!player) return;
+
+        try {
+            const result = await pool.query(
+                `SELECT * FROM notifications
+                 WHERE user_id = $1 AND is_read = FALSE
+                 ORDER BY created_at DESC
+                 LIMIT 20`,
+                [player.userId]
+            );
+
+            socket.emit('notifications_response', {
+                notifications: result.rows,
+            });
+
+        } catch (error) {
+            logger.error('❌ Notifications error:', error);
+        }
+    });
+
+    socket.on('mark_notification_read', async (data) => {
+        const player = players.get(socket.id);
+        if (!player) return;
+
+        try {
+            const { notificationId } = data;
+            await pool.query(
+                'UPDATE notifications SET is_read = TRUE WHERE id = $1 AND user_id = $2',
+                [notificationId, player.userId]
+            );
+
+        } catch (error) {
+            logger.error('❌ Mark notification error:', error);
+        }
+    });
+
+    // ============================================================
+    // 💓 Ping/Pong للحفاظ على الاتصال
+    // ============================================================
+    socket.on('ping', (data) => {
+        socket.emit('pong', {
+            timestamp: data?.timestamp || Date.now(),
+            serverTime: Date.now(),
+        });
+    });
+
+    // ============================================================
+    // 🔌 انقطاع الاتصال (مع تنظيف شامل)
+    // ============================================================
+    socket.on('disconnect', async () => {
+        const player = players.get(socket.id);
+
+        if (player) {
+            logger.info(`🔌 Disconnected: ${player.username} (${socket.id})`);
+
+            // إذا كان في غرفة
+            if (player.roomId) {
+                try {
+                    const roomResult = await pool.query(
+                        'SELECT status FROM rooms WHERE id = $1',
+                        [player.roomId]
+                    );
+
+                    if (roomResult.rows.length > 0) {
+                        const status = roomResult.rows[0].status;
+
+                        if (status === 'waiting') {
+                            // إعادة الرصيد عند المغادرة قبل البدء
+                            const rpResult = await pool.query(
+                                `DELETE FROM room_players
+                                 WHERE room_id = $1 AND user_id = $2
+                                 RETURNING paid_amount`,
+                                [player.roomId, player.userId]
+                            );
+
+                            if (rpResult.rows.length > 0) {
+                                const paidAmount = rpResult.rows[0].paid_amount || 1;
+                                await pool.query(
+                                    'UPDATE users SET balance = balance + $1 WHERE id = $2',
+                                    [paidAmount, player.userId]
+                                );
+
+                                await pool.query(
+                                    `INSERT INTO transactions (user_id, type, amount, balance_after, description, room_id)
+                                     VALUES ($1, $2, $3, $4, $5, $6)`,
+                                    [player.userId, 'refund', paidAmount, player.balance + paidAmount, `مغادرة بسبب الانقطاع`, player.roomId]
+                                );
+                            }
+
+                            await pool.query(
+                                'UPDATE rooms SET players_count = players_count - 1 WHERE id = $1',
+                                [player.roomId]
+                            );
+
+                            io.to(player.roomId).emit('player_left', {
+                                userId: player.userId,
+                                username: player.username,
+                                reason: 'disconnected',
+                            });
+
+                            await sendRoomsListToAll();
+
+                        } else if (status === 'active') {
+                            // إزالة اللاعب من المعركة
+                            await pool.query(
+                                `UPDATE room_players SET is_alive = FALSE, left_at = CURRENT_TIMESTAMP
+                                 WHERE room_id = $1 AND user_id = $2`,
+                                [player.roomId, player.userId]
+                            );
+
+                            io.to(player.roomId).emit('player_left', {
+                                userId: player.userId,
+                                username: player.username,
+                                reason: 'disconnected_during_game',
+                            });
+
+                            // التحقق من انتهاء اللعبة
+                            const aliveResult = await pool.query(
+                                `SELECT COUNT(*) FROM room_players
+                                 WHERE room_id = $1 AND is_alive = TRUE AND left_at IS NULL`,
+                                [player.roomId]
+                            );
+
+                            if (parseInt(aliveResult.rows[0].count) <= 1) {
+                                await endGame(player.roomId, '🏆 انتهت المعركة بسبب انسحاب لاعب');
+                            }
+                        }
+                    }
+
+                    socket.leave(player.roomId);
+
+                } catch (error) {
+                    logger.error('❌ Disconnect cleanup error:', error);
+                }
+            }
+
+            // تحديث الجلسة
+            await pool.query(
+                'UPDATE sessions SET socket_id = NULL, last_activity = CURRENT_TIMESTAMP WHERE user_id = $1',
+                [player.userId]
+            );
+
+            // إزالة من الذاكرة
+            players.delete(socket.id);
+            lastMoveTime.delete(socket.id);
+            lastShotTime.delete(socket.id);
+        }
+    });
+});
+
+// ================================================================
+// 🌐 API Routes المتقدمة
+// ================================================================
+
+// ✅ التحقق من صحة الخادم (مع معلومات متقدمة)
+app.get('/health', (req, res) => {
+    res.json({
+        status: 'online',
+        timestamp: Date.now(),
+        version: '6.0.0',
+        connections: io.engine.clientsCount,
+        rooms: rooms.size,
+        activeGames: gameStates.size,
+        uptime: process.uptime(),
+        memory: {
+            rss: process.memoryUsage().rss,
+            heapTotal: process.memoryUsage().heapTotal,
+            heapUsed: process.memoryUsage().heapUsed,
+        },
+        db: pool._connected ? 'connected' : 'disconnected',
+    });
+});
+
+// ✅ الحصول على رصيد المستخدم
+app.get('/api/balance/:telegramId', async (req, res) => {
+    try {
+        const { telegramId } = req.params;
+        const result = await pool.query(
+            'SELECT balance, username FROM users WHERE telegram_id = $1',
+            [telegramId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'User not found' });
+        }
+
+        res.json({
+            success: true,
+            balance: result.rows[0].balance,
+            username: result.rows[0].username,
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ✅ الحصول على إحصائيات المستخدم
+app.get('/api/stats/:telegramId', async (req, res) => {
+    try {
+        const { telegramId } = req.params;
+        const result = await pool.query(
+            `SELECT * FROM get_player_stats((SELECT id FROM users WHERE telegram_id = $1))`,
+            [telegramId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'User not found' });
+        }
+
+        res.json({
+            success: true,
+            stats: result.rows[0],
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ✅ API للمشرفين (مع تحقق متقدم)
+app.post('/api/admin/deposit', async (req, res) => {
+    try {
+        const { adminToken, targetTelegramId, amount, reason } = req.body;
+
+        if (adminToken !== process.env.ADMIN_SECRET) {
+            return res.status(403).json({ success: false, error: 'Unauthorized' });
+        }
+
+        if (!targetTelegramId || !amount || amount <= 0) {
+            return res.status(400).json({ success: false, error: 'Invalid parameters' });
+        }
+
+        const result = await pool.query(
+            `UPDATE users
+             SET balance = balance + $1
+             WHERE telegram_id = $2
+             RETURNING balance, username, id`,
+            [amount, targetTelegramId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'User not found' });
+        }
+
+        const user = result.rows[0];
+        await pool.query(
+            `INSERT INTO transactions (user_id, type, amount, balance_after, description)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [user.id, 'admin_add', amount, user.balance, reason || 'إيداع من المشرف']
+        );
+
+        await logAudit(
+            user.id,
+            'admin_deposit',
+            { target: targetTelegramId, amount, reason },
+            req.ip,
+            req.headers['user-agent'],
+            'warning'
+        );
+
+        res.json({
+            success: true,
+            newBalance: user.balance,
+            username: user.username,
+        });
+    } catch (error) {
+        logger.error('❌ Admin deposit error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ✅ API للمشرفين - حظر لاعب
+app.post('/api/admin/ban', async (req, res) => {
+    try {
+        const { adminToken, targetTelegramId, reason, duration } = req.body;
+
+        if (adminToken !== process.env.ADMIN_SECRET) {
+            return res.status(403).json({ success: false, error: 'Unauthorized' });
+        }
+
+        const userResult = await pool.query(
+            'SELECT id FROM users WHERE telegram_id = $1',
+            [targetTelegramId]
+        );
+
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'User not found' });
+        }
+
+        const userId = userResult.rows[0].id;
+        const expiresAt = duration ? new Date(Date.now() + duration * 1000) : null;
+
+        await pool.query(
+            `INSERT INTO bans (user_id, reason, duration, expires_at)
+             VALUES ($1, $2, $3, $4)`,
+            [userId, reason || 'تم الحظر من قبل المشرف', duration || null, expiresAt]
+        );
+
+        await pool.query(
+            'UPDATE users SET is_banned = TRUE WHERE id = $1',
+            [userId]
+        );
+
+        await logAudit(
+            userId,
+            'admin_ban',
+            { target: targetTelegramId, reason, duration },
+            req.ip,
+            req.headers['user-agent'],
+            'critical'
+        );
+
+        res.json({
+            success: true,
+            message: 'تم حظر المستخدم بنجاح',
+            expiresAt: expiresAt,
+        });
+    } catch (error) {
+        logger.error('❌ Admin ban error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ✅ API للمشرفين - فك الحظر
+app.post('/api/admin/unban', async (req, res) => {
+    try {
+        const { adminToken, targetTelegramId } = req.body;
+
+        if (adminToken !== process.env.ADMIN_SECRET) {
+            return res.status(403).json({ success: false, error: 'Unauthorized' });
+        }
+
+        const userResult = await pool.query(
+            'SELECT id FROM users WHERE telegram_id = $1',
+            [targetTelegramId]
+        );
+
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'User not found' });
+        }
+
+        const userId = userResult.rows[0].id;
+
+        await pool.query(
+            'UPDATE bans SET expires_at = CURRENT_TIMESTAMP WHERE user_id = $1 AND expires_at IS NULL',
+            [userId]
+        );
+
+        await pool.query(
+            'UPDATE users SET is_banned = FALSE WHERE id = $1',
+            [userId]
+        );
+
+        await logAudit(
+            userId,
+            'admin_unban',
+            { target: targetTelegramId },
+            req.ip,
+            req.headers['user-agent'],
+            'warning'
+        );
+
+        res.json({
+            success: true,
+            message: 'تم فك الحظر عن المستخدم',
+        });
+    } catch (error) {
+        logger.error('❌ Admin unban error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ✅ API للحصول على إحصائيات المشرف
+app.get('/api/admin/stats', async (req, res) => {
+    try {
+        const { adminToken } = req.query;
+
+        if (adminToken !== process.env.ADMIN_SECRET) {
+            return res.status(403).json({ success: false, error: 'Unauthorized' });
+        }
+
+        const stats = await pool.query(`
+            SELECT
+                (SELECT COUNT(*) FROM users) as total_users,
+                (SELECT COUNT(*) FROM users WHERE is_admin = TRUE) as admin_count,
+                (SELECT COUNT(*) FROM users WHERE is_banned = TRUE) as banned_count,
+                (SELECT SUM(balance) FROM users) as total_balance,
+                (SELECT SUM(games_played) FROM users) as total_games,
+                (SELECT SUM(wins) FROM users) as total_wins,
+                (SELECT COUNT(*) FROM rooms WHERE status = 'active') as active_games,
+                (SELECT COUNT(*) FROM rooms WHERE status = 'waiting') as waiting_games,
+                (SELECT COUNT(*) FROM transactions WHERE created_at > CURRENT_DATE) as today_transactions,
+                (SELECT SUM(amount) FROM transactions WHERE type = 'game_entry' AND created_at > CURRENT_DATE) as today_revenue
+        `);
+
+        const users = await pool.query(
+            `SELECT id, telegram_id, username, balance, games_played, wins, total_kills, is_admin, is_banned, created_at
+             FROM users ORDER BY created_at DESC LIMIT 100`
+        );
+
+        res.json({
+            success: true,
+            stats: stats.rows[0],
+            users: users.rows,
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ✅ API للحصول على قائمة الغرف (للمشرف)
+app.get('/api/admin/rooms', async (req, res) => {
+    try {
+        const { adminToken } = req.query;
+
+        if (adminToken !== process.env.ADMIN_SECRET) {
+            return res.status(403).json({ success: false, error: 'Unauthorized' });
+        }
+
+        const roomsList = await pool.query(
+            `SELECT r.*, COUNT(rp.id) as actual_players,
+                    array_agg(DISTINCT u.username) as player_names
+             FROM rooms r
+             LEFT JOIN room_players rp ON r.id = rp.room_id AND rp.left_at IS NULL
+             LEFT JOIN users u ON rp.user_id = u.id
+             GROUP BY r.id
+             ORDER BY r.created_at DESC`
+        );
+
+        res.json({
+            success: true,
+            rooms: roomsList.rows,
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ✅ API لتحديث إعدادات الغرف (للمشرف)
+app.post('/api/admin/update_room_type', async (req, res) => {
+    try {
+        const { adminToken, typeName, maxSeats, seatPrice } = req.body;
+
+        if (adminToken !== process.env.ADMIN_SECRET) {
+            return res.status(403).json({ success: false, error: 'Unauthorized' });
+        }
+
+        if (!typeName || !maxSeats || maxSeats < 2 || maxSeats > 16 || !seatPrice || seatPrice < 1) {
+            return res.status(400).json({ success: false, error: 'Invalid parameters' });
+        }
+
+        // تحديث جميع الغرف من هذا النوع
+        await pool.query(
+            `UPDATE rooms SET max_seats = $1, seat_price = $2 WHERE type = $3`,
+            [maxSeats, seatPrice, typeName]
+        );
+
+        // تحديث في الذاكرة
+        for (const [id, room] of rooms) {
+            if (room.type === typeName) {
+                room.maxSeats = maxSeats;
+                room.seatPrice = seatPrice;
+            }
+        }
+
+        // تسجيل التدقيق
+        await logAudit(
+            null,
+            'admin_update_room_type',
+            { typeName, maxSeats, seatPrice },
+            req.ip,
+            req.headers['user-agent'],
+            'warning'
+        );
+
+        await sendRoomsListToAll();
+
+        res.json({
+            success: true,
+            message: `تم تحديث ${typeName} إلى ${maxSeats} لاعبين و ${seatPrice}$`,
+        });
+    } catch (error) {
+        logger.error('❌ Update room type error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ================================================================
+// 🚀 مسار اللعبة (مع استخلاص معرف تيليغرام)
+// ================================================================
+app.get('/game', (req, res) => {
+    const { user_id } = req.query;
+    if (!user_id) {
+        return res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    }
+    res.sendFile(path.join(__dirname, 'public', 'game.html'));
+});
+
+// ================================================================
+// 🚀 تشغيل الخادم
+// ================================================================
+const PORT = process.env.PORT || 3000;
+let isDbReady = false;
+
+async function startServer() {
+    try {
+        // تهيئة قاعدة البيانات
+        await initializeDatabase();
+        isDbReady = true;
+
+        // تهيئة الغرف
+        await initializeRooms();
+
+        // تشغيل الخادم
+        server.listen(PORT, () => {
+            console.log(`
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                                                                           ║
+║           🎮 BATTLE TANKS ELITE v6.0 - READY FOR PRODUCTION 🎮           ║
+║                                                                           ║
+╠═══════════════════════════════════════════════════════════════════════════╣
+║  📡 Server:        http://localhost:${PORT}
+║  🌐 WebSocket:     wss://localhost:${PORT}
+║  🗄️  PostgreSQL:   Connected (Neon)
+║  🏠 Rooms:         ${rooms.size} rooms (${ROOM_TYPES.length} types × ${ROOMS_PER_TYPE} each)
+║  👥 Connections:   ${io.engine.clientsCount}
+║  ⏱️  Game Duration: ${parseInt(process.env.GAME_DURATION) / 1000 || 300} seconds
+║  🚀 Version:       6.0.0
+║  🔐 Security:      JWT + Rate Limit + Slow Down + Helmet
+║  📊 Queue System:  Active
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+            `);
+        });
+
+    } catch (error) {
+        logger.error('❌ Failed to start server:', error);
+        process.exit(1);
+    }
+}
+
+// ================================================================
+// 🛑 التعامل مع الإغلاق الآمن
+// ================================================================
 async function shutdown() {
-    logger.info('Shutting down gracefully...');
-    console.log('🛑 Shutting down gracefully...');
-    server.close(() => logger.info('HTTP server closed'));
-    io.close(() => logger.info('WebSocket server closed'));
-    await db.shutdown();
-    await cache.shutdown();
-    await lockSystem.shutdown();
-    monitoring.stop();
+    logger.info('🛑 Shutting down gracefully...');
+
+    // إزالة جميع المؤقتات
+    for (const [roomId, timer] of roomTimers) {
+        clearTimeout(timer);
+    }
+    roomTimers.clear();
+
+    for (const [roomId, interval] of roomIntervals) {
+        clearInterval(interval);
+    }
+    roomIntervals.clear();
+
+    // تنظيف الطوابير
+    actionQueue.clear();
+
+    // إغلاق اتصالات Socket.io
+    io.close(() => {
+        logger.info('✅ Socket.io closed');
+    });
+
+    // إغلاق اتصال قاعدة البيانات
+    await pool.end();
+    logger.info('✅ Database connection closed');
+
     process.exit(0);
 }
 
-process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
+process.on('uncaughtException', (error) => {
+    logger.error('❌ Uncaught exception:', error);
+});
 
+process.on('unhandledRejection', (reason, promise) => {
+    logger.error('❌ Unhandled rejection:', reason);
+});
+
+// ================================================================
+// 🚀 بدء التشغيل
+// ================================================================
 startServer();
 
-module.exports = { app, server, io, db, monitoring, lockSystem, antiCheat, cache, queueProcessor, roomManager, userManager, eloSystem, loadServerConfig, saveServerConfig };
+module.exports = { app, server, io, pool };

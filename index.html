@@ -1,16 +1,14 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Battle Tanks Royale 🎮</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <title>Battle Tanks Elite - تسجيل الدخول</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        /* ============================================
-           🎯 ROOT VARIABLES & RESET
-           ============================================ */
+        /* ============================================================
+           🎨 الأنماط المتقدمة مع تأثيرات احترافية
+           ============================================================ */
         * {
             margin: 0;
             padding: 0;
@@ -19,2477 +17,694 @@
         }
 
         :root {
-            --primary: #d4af37;
-            --primary-dark: #b8860b;
-            --primary-light: #f0d060;
-            --primary-gradient: linear-gradient(135deg, #b8860b, #d4af37, #f0d060);
-            --bg-dark: #0a0f1a;
-            --bg-card: rgba(20, 30, 50, 0.92);
-            --bg-card-hover: rgba(30, 45, 70, 0.95);
-            --text-light: #ffffff;
+            --gold: #d4af37;
+            --gold-dark: #b8860b;
+            --gold-light: #f0d060;
+            --dark: #0a0f1a;
+            --darker: #05070c;
+            --text: #e8e8e8;
             --text-muted: #8a9aa8;
-            --text-gold: #d4af37;
-            --shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-            --shadow-glow: 0 0 40px rgba(212, 175, 55, 0.15);
-            --radius: 16px;
-            --radius-sm: 10px;
-            --danger: #e74c3c;
-            --success: #2ecc71;
-            --warning: #f1c40f;
-            --info: #3498db;
-            --header-height: 56px;
-            --bottom-nav-height: 64px;
-            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        html, body {
-            font-family: 'Cairo', sans-serif;
-            background: var(--bg-dark);
-            color: var(--text-light);
-            overflow: hidden;
-            height: 100vh;
-            width: 100vw;
-            position: relative;
-        }
-
-        /* ============================================
-           📱 SCREENS
-           ============================================ */
-        .screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: none;
-            flex-direction: column;
-            z-index: 10;
-            background: var(--bg-dark);
-            padding-top: var(--header-height);
-            padding-bottom: calc(var(--bottom-nav-height) + 8px);
-            overflow-y: auto;
-            overflow-x: hidden;
-        }
-
-        .screen.active {
-            display: flex !important;
-            animation: screenIn 0.3s ease;
-        }
-
-        @keyframes screenIn {
-            0% { opacity: 0; transform: scale(0.98); }
-            100% { opacity: 1; transform: scale(1); }
-        }
-
-        /* ============================================
-           🏷️ SCROLLBAR STYLING
-           ============================================ */
-        .screen::-webkit-scrollbar {
-            width: 4px;
-        }
-        .screen::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.05);
-        }
-        .screen::-webkit-scrollbar-thumb {
-            background: var(--primary);
-            border-radius: 10px;
-        }
-
-        /* ============================================
-           📌 TOP HEADER
-           ============================================ */
-        .top-header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: var(--header-height);
-            background: var(--bg-card);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(212, 175, 55, 0.08);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 16px;
-            z-index: 100;
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
-        }
-
-        .top-header .brand {
-            font-size: 18px;
-            font-weight: 900;
-            background: var(--primary-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .top-header .brand i {
-            -webkit-text-fill-color: initial;
-            color: var(--primary);
-        }
-
-        .top-header .user-info {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .top-header .user-id {
-            font-size: 12px;
-            color: var(--text-muted);
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .top-header .user-id span {
-            color: var(--primary);
-            font-weight: 600;
-        }
-
-        .top-header .balance {
-            font-size: 14px;
-            font-weight: 700;
-            color: var(--primary);
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            background: rgba(212, 175, 55, 0.1);
-            padding: 4px 12px;
-            border-radius: 20px;
-            border: 1px solid rgba(212, 175, 55, 0.15);
-        }
-
-        .top-header .balance i {
-            font-size: 12px;
-        }
-
-        /* ============================================
-           📱 BOTTOM NAVIGATION
-           ============================================ */
-        .bottom-nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: var(--bottom-nav-height);
-            background: var(--bg-card);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-top: 1px solid rgba(212, 175, 55, 0.06);
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            z-index: 100;
-            padding: 0 4px;
-            box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.3);
-        }
-
-        .bottom-nav .nav-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 2px;
-            padding: 6px 12px;
-            border: none;
-            background: none;
-            color: var(--text-muted);
-            font-family: 'Cairo', sans-serif;
-            font-size: 10px;
-            cursor: pointer;
-            transition: var(--transition);
-            min-width: 48px;
-            position: relative;
-            border-radius: 12px;
-        }
-
-        .bottom-nav .nav-item i {
-            font-size: 20px;
-            transition: var(--transition);
-        }
-
-        .bottom-nav .nav-item span {
-            transition: var(--transition);
-        }
-
-        .bottom-nav .nav-item:hover {
-            color: var(--text-light);
-        }
-
-        .bottom-nav .nav-item.active {
-            color: var(--primary);
-        }
-
-        .bottom-nav .nav-item.active i {
-            transform: translateY(-2px);
-            text-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
-        }
-
-        .bottom-nav .nav-item .badge {
-            position: absolute;
-            top: 0;
-            right: 4px;
-            background: var(--danger);
-            color: #fff;
-            font-size: 8px;
-            padding: 1px 6px;
-            border-radius: 10px;
-            min-width: 16px;
-            text-align: center;
-            font-weight: 700;
-        }
-
-        /* ============================================
-           🔄 LOADING SCREEN
-           ============================================ */
-        #loadingScreen {
-            z-index: 99999;
-            justify-content: center;
-            align-items: center;
-            padding: 0;
-        }
-
-        #loadingScreen .loader {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 24px;
-        }
-
-        #loadingScreen .loader .logo {
-            font-size: 64px;
-            animation: pulse 1.5s ease-in-out infinite;
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
         }
 
         @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-        }
-
-        #loadingScreen .loader .spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid rgba(212, 175, 55, 0.1);
-            border-top: 4px solid var(--primary);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            100% { transform: rotate(360deg); }
-        }
-
-        #loadingScreen .loader .text {
-            color: var(--primary);
-            font-weight: 600;
-            font-size: 16px;
-            animation: fadeText 1.5s ease-in-out infinite;
-        }
-
-        @keyframes fadeText {
             0%, 100% { opacity: 0.6; }
             50% { opacity: 1; }
         }
 
-        /* ============================================
-           🔐 AUTH SCREEN
-           ============================================ */
-        #authScreen {
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-            z-index: 50;
+        @keyframes shimmer {
+            0% { background-position: -200% center; }
+            100% { background-position: 200% center; }
         }
 
-        .auth-box {
-            background: var(--bg-card);
-            padding: 40px 32px;
-            border-radius: var(--radius);
-            max-width: 400px;
-            width: 100%;
-            text-align: center;
-            border: 1px solid rgba(212, 175, 55, 0.1);
-            box-shadow: var(--shadow), var(--shadow-glow);
-            animation: authIn 0.5s ease;
+        @keyframes orbit {
+            0% { transform: rotate(0deg) translateX(120px) rotate(0deg); }
+            100% { transform: rotate(360deg) translateX(120px) rotate(-360deg); }
         }
 
-        @keyframes authIn {
-            0% { opacity: 0; transform: translateY(30px) scale(0.95); }
-            100% { opacity: 1; transform: translateY(0) scale(1); }
-        }
-
-        .auth-box .logo-icon {
-            font-size: 60px;
-            margin-bottom: 8px;
-            display: block;
-        }
-
-        .auth-box h1 {
-            background: var(--primary-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            font-size: 32px;
-            font-weight: 900;
-        }
-
-        .auth-box .sub {
-            color: var(--text-muted);
-            margin-bottom: 24px;
-            font-size: 14px;
-            -webkit-text-fill-color: initial;
-        }
-
-        .auth-input-group {
-            position: relative;
-            margin-bottom: 16px;
-        }
-
-        .auth-input-group .icon {
-            position: absolute;
-            right: 14px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-muted);
-            font-size: 16px;
-        }
-
-        .auth-input {
-            width: 100%;
-            padding: 14px 45px 14px 16px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 2px solid rgba(255, 255, 255, 0.08);
-            border-radius: var(--radius-sm);
-            color: #fff;
-            font-size: 16px;
-            font-family: 'Cairo', sans-serif;
-            transition: var(--transition);
-        }
-
-        .auth-input:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 20px rgba(212, 175, 55, 0.1);
-        }
-
-        .auth-input::placeholder {
-            color: var(--text-muted);
-            font-size: 14px;
-        }
-
-        .auth-btn {
-            width: 100%;
-            padding: 16px;
-            border: none;
-            border-radius: var(--radius-sm);
-            font-size: 18px;
-            font-weight: 700;
-            color: #fff;
-            cursor: pointer;
-            transition: var(--transition);
-            background: var(--primary-gradient);
+        body {
+            font-family: 'Cairo', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: radial-gradient(ellipse at 30% 20%, #1a2a3a 0%, var(--dark) 50%, var(--darker) 100%);
+            color: var(--text);
+            min-height: 100vh;
             display: flex;
-            align-items: center;
             justify-content: center;
-            gap: 10px;
-            font-family: 'Cairo', sans-serif;
-        }
-
-        .auth-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 30px rgba(212, 175, 55, 0.3);
-        }
-
-        .auth-btn:active {
-            transform: scale(0.96);
-        }
-
-        .auth-footer {
-            margin-top: 16px;
-            font-size: 12px;
-            color: var(--text-muted);
-            -webkit-text-fill-color: initial;
-        }
-
-        .auth-footer code {
-            color: var(--primary);
-            background: rgba(212, 175, 55, 0.1);
-            padding: 2px 10px;
-            border-radius: 6px;
-            font-size: 12px;
-        }
-
-        /* ============================================
-           🏠 MAIN SCREEN
-           ============================================ */
-        #mainScreen {
-            padding: 16px;
-        }
-
-        .main-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
             align-items: center;
-            justify-content: center;
-            gap: 28px;
-            padding: 20px 0;
-        }
-
-        .game-logo {
-            width: 100%;
-            max-width: 260px;
-            aspect-ratio: 1/1;
-            border-radius: var(--radius);
             overflow: hidden;
-            background: var(--bg-card);
-            border: 2px solid rgba(212, 175, 55, 0.08);
-            display: flex;
-            align-items: center;
-            justify-content: center;
             position: relative;
-            box-shadow: var(--shadow), var(--shadow-glow);
-            transition: var(--transition);
         }
 
-        .game-logo:hover {
-            transform: scale(1.02);
-            border-color: rgba(212, 175, 55, 0.2);
-        }
-
-        .game-logo .placeholder {
-            font-size: 80px;
-            color: var(--primary);
-            opacity: 0.5;
-        }
-
-        .game-logo img {
+        /* ============================================================
+           🌟 خلفية متحركة مع جسيمات
+           ============================================================ */
+        .bg-particles {
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
         }
 
-        .game-logo .badge-status {
+        .bg-particles span {
             position: absolute;
-            bottom: 12px;
-            right: 12px;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 10px;
-            font-weight: 600;
-            color: var(--success);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(46, 204, 113, 0.2);
+            width: 4px;
+            height: 4px;
+            background: var(--gold);
+            border-radius: 50%;
+            opacity: 0.15;
+            animation: float-particle linear infinite;
         }
 
-        .main-title {
+        @keyframes float-particle {
+            0% { transform: translateY(100vh) scale(0); opacity: 0; }
+            10% { opacity: 0.15; }
+            90% { opacity: 0.15; }
+            100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+        }
+
+        .bg-glow {
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(212, 175, 55, 0.05), transparent 70%);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 0;
+            animation: pulse 4s ease-in-out infinite;
+        }
+
+        /* ============================================================
+           📦 حاوية تسجيل الدخول
+           ============================================================ */
+        .container {
+            background: rgba(10, 15, 30, 0.92);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            padding: 50px 40px;
+            border-radius: 48px;
             text-align: center;
+            max-width: 440px;
+            width: 92%;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            box-shadow: 
+                0 30px 80px rgba(0,0,0,0.8),
+                0 0 60px rgba(212, 175, 55, 0.05),
+                inset 0 1px 0 rgba(255,255,255,0.05);
+            position: relative;
+            z-index: 1;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        .main-title h1 {
-            font-size: 28px;
+        .container:hover {
+            transform: translateY(-5px);
+        }
+
+        /* ============================================================
+           🏷️ الشعار والعنوان
+           ============================================================ */
+        .logo-wrapper {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+
+        .logo {
+            font-size: 72px;
+            display: inline-block;
+            animation: float 3s ease-in-out infinite;
+            filter: drop-shadow(0 0 30px rgba(212, 175, 55, 0.2));
+        }
+
+        .logo-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 100px;
+            height: 100px;
+            border: 2px solid rgba(212, 175, 55, 0.1);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            animation: orbit 12s linear infinite;
+        }
+
+        .logo-ring::before {
+            content: '✦';
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: var(--gold);
+            font-size: 12px;
+        }
+
+        h1 {
+            color: var(--gold);
+            font-size: 32px;
             font-weight: 900;
-            background: var(--primary-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            letter-spacing: 3px;
+            text-shadow: 0 0 30px rgba(212, 175, 55, 0.15);
+            margin-top: 5px;
         }
 
-        .main-title p {
-            color: var(--text-muted);
+        h1 .elite {
             font-size: 14px;
-            -webkit-text-fill-color: initial;
+            letter-spacing: 4px;
+            display: block;
+            color: var(--gold-light);
+            opacity: 0.7;
+            font-weight: 400;
+            margin-top: -2px;
         }
 
-        .play-btn {
-            width: 100%;
-            max-width: 260px;
-            padding: 18px;
-            border: none;
-            border-radius: 50px;
-            background: var(--primary-gradient);
-            color: #fff;
-            font-size: 20px;
-            font-weight: 800;
-            font-family: 'Cairo', sans-serif;
-            cursor: pointer;
-            transition: var(--transition);
-            box-shadow: 0 4px 30px rgba(212, 175, 55, 0.3);
+        .subtitle {
+            color: var(--text-muted);
+            margin: 8px 0 30px;
+            font-size: 16px;
+            letter-spacing: 1px;
+        }
+
+        .subtitle span {
+            color: var(--gold);
+        }
+
+        /* ============================================================
+           🔘 زر تيليغرام
+           ============================================================ */
+        .telegram-btn {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 12px;
+            gap: 14px;
+            width: 100%;
+            background: linear-gradient(135deg, #0088cc, #006699);
+            color: white;
+            padding: 18px 40px;
+            border-radius: 60px;
+            border: none;
+            font-size: 20px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 4px 25px rgba(0, 136, 204, 0.3);
+            font-family: 'Cairo', sans-serif;
             position: relative;
             overflow: hidden;
         }
 
-        .play-btn::before {
+        .telegram-btn::after {
             content: '';
             position: absolute;
             top: -50%;
             left: -50%;
             width: 200%;
             height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
-            transform: rotate(0deg);
-            transition: var(--transition);
+            background: linear-gradient(
+                45deg,
+                transparent 30%,
+                rgba(255,255,255,0.05) 50%,
+                transparent 70%
+            );
+            animation: shimmer 3s infinite;
+            background-size: 200% 100%;
         }
 
-        .play-btn:hover::before {
-            transform: rotate(180deg);
+        .telegram-btn:hover {
+            transform: scale(1.03);
+            box-shadow: 0 8px 45px rgba(0, 136, 204, 0.5);
         }
 
-        .play-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 40px rgba(212, 175, 55, 0.4);
-        }
-
-        .play-btn:active {
-            transform: scale(0.96);
-        }
-
-        .play-btn i {
-            font-size: 24px;
-        }
-
-        /* ============================================
-           🏠 LOBBY SCREEN
-           ============================================ */
-        #lobbyScreen {
-            padding: 16px;
-        }
-
-        .lobby-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 14px 18px;
-            background: var(--bg-card);
-            border-radius: var(--radius);
-            margin-bottom: 16px;
-            border: 1px solid rgba(212, 175, 55, 0.05);
-            box-shadow: var(--shadow);
-        }
-
-        .lobby-header h2 {
-            color: var(--primary);
-            font-size: 18px;
-            font-weight: 800;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .lobby-stats {
-            display: flex;
-            gap: 14px;
-            font-size: 12px;
-            color: var(--text-muted);
-        }
-
-        .lobby-stats span {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .lobby-stats i {
-            color: var(--primary);
-            font-size: 14px;
-        }
-
-        .lobby-stats .num {
-            color: #fff;
-            font-weight: 700;
-        }
-
-        .rooms-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 14px;
-            flex: 1;
-            padding-bottom: 12px;
-        }
-
-        .room-card {
-            background: var(--bg-card);
-            padding: 18px;
-            border-radius: var(--radius);
-            border: 1px solid rgba(212, 175, 55, 0.06);
-            cursor: pointer;
-            transition: var(--transition);
-            position: relative;
-            box-shadow: var(--shadow);
-        }
-
-        .room-card:hover {
-            transform: translateY(-4px);
-            border-color: rgba(212, 175, 55, 0.15);
-            box-shadow: var(--shadow), var(--shadow-glow);
-        }
-
-        .room-card:active {
+        .telegram-btn:active {
             transform: scale(0.97);
         }
 
-        .room-card.full {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .room-card .badge {
-            position: absolute;
-            top: 12px;
-            left: 12px;
-            font-size: 10px;
-            padding: 2px 12px;
-            border-radius: 20px;
-            background: rgba(212, 175, 55, 0.12);
-            color: var(--primary);
-            font-weight: 600;
-        }
-
-        .room-card .type-icon {
-            font-size: 24px;
-        }
-
-        .room-card .name {
-            font-size: 18px;
-            font-weight: 700;
-            margin: 4px 0;
-        }
-
-        .room-card .details {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 6px;
-            font-size: 13px;
-            margin-top: 8px;
-        }
-
-        .room-card .details .players {
-            color: var(--text-muted);
-        }
-
-        .room-card .details .players .count {
-            color: #fff;
-            font-weight: 700;
-        }
-
-        .room-card .details .price {
-            color: var(--primary);
-            font-weight: 700;
-            background: rgba(212, 175, 55, 0.08);
-            padding: 2px 12px;
-            border-radius: 12px;
-        }
-
-        .room-card .status-tag {
-            padding: 2px 12px;
-            border-radius: 20px;
-            font-size: 10px;
-            font-weight: 600;
-        }
-
-        .room-card .status-tag.waiting {
-            background: rgba(46, 204, 113, 0.15);
-            color: var(--success);
-        }
-
-        .room-card .status-tag.full {
-            background: rgba(241, 196, 15, 0.15);
-            color: var(--warning);
-        }
-
-        .room-card .status-tag.active {
-            background: rgba(231, 76, 60, 0.15);
-            color: var(--danger);
-        }
-
-        .room-card .progress {
-            margin-top: 12px;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.06);
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        .room-card .progress .bar {
-            height: 100%;
-            background: var(--primary-gradient);
-            border-radius: 4px;
-            transition: width 0.5s ease;
-        }
-
-        .room-card .elo-range {
-            font-size: 11px;
-            color: var(--text-muted);
-            margin-top: 6px;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .room-card .elo-range i {
-            font-size: 12px;
-        }
-
-        .empty-rooms {
-            grid-column: 1 / -1;
-            text-align: center;
-            padding: 60px 20px;
-            color: var(--text-muted);
-        }
-
-        .empty-rooms i {
-            font-size: 48px;
-            display: block;
-            margin-bottom: 16px;
-            opacity: 0.3;
-        }
-
-        /* ============================================
-           💺 SEATS SCREEN
-           ============================================ */
-        #seatsScreen {
-            padding: 16px;
-        }
-
-        .seats-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 14px 18px;
-            background: var(--bg-card);
-            border-radius: var(--radius);
-            margin-bottom: 16px;
-            flex-wrap: wrap;
-            gap: 8px;
-            border: 1px solid rgba(212, 175, 55, 0.05);
-            box-shadow: var(--shadow);
-        }
-
-        .seats-header .info h2 {
-            color: var(--primary);
-            font-size: 18px;
-            font-weight: 800;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .seats-header .info .sub {
-            color: var(--text-muted);
-            font-size: 12px;
-        }
-
-        .seats-header .status-badge {
-            padding: 4px 16px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .seats-header .status-badge.waiting {
-            background: rgba(46, 204, 113, 0.15);
-            color: var(--success);
-        }
-
-        .seats-header .status-badge.starting {
-            background: rgba(241, 196, 15, 0.15);
-            color: var(--warning);
-            animation: pulseBadge 1s ease-in-out infinite;
-        }
-
-        .seats-header .status-badge.active {
-            background: rgba(231, 76, 60, 0.15);
-            color: var(--danger);
-        }
-
-        @keyframes pulseBadge {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.6; }
-        }
-
-        .seats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
-            gap: 10px;
-            flex: 1;
-            padding-bottom: 12px;
-        }
-
-        .seat-item {
-            background: var(--bg-card);
-            padding: 12px 6px;
-            border-radius: var(--radius-sm);
-            text-align: center;
-            border: 2px solid rgba(255, 255, 255, 0.05);
-            transition: var(--transition);
-            min-height: 72px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 2px;
-            box-shadow: var(--shadow);
-        }
-
-        .seat-item .num {
-            font-size: 12px;
-            font-weight: 700;
-            color: var(--text-muted);
-        }
-
-        .seat-item .name {
-            font-size: 10px;
-            font-weight: 600;
-            max-width: 100%;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .seat-item.occupied {
-            border-color: var(--primary);
-            background: rgba(212, 175, 55, 0.06);
-        }
-
-        .seat-item.occupied .num {
-            color: var(--primary);
-        }
-
-        .seat-item.your {
-            border-color: var(--success);
-            background: rgba(46, 204, 113, 0.08);
-        }
-
-        .seat-item.your .num {
-            color: var(--success);
-        }
-
-        .seat-item.empty {
-            border-color: rgba(255, 255, 255, 0.05);
-            cursor: pointer;
-        }
-
-        .seat-item.empty:hover {
-            border-color: var(--primary);
-            transform: scale(1.05);
-        }
-
-        .seat-item .status-tag {
-            font-size: 8px;
-            padding: 1px 8px;
-            border-radius: 10px;
-            margin-top: 2px;
-            font-weight: 600;
-        }
-
-        .seat-item .status-tag.occupied {
-            background: rgba(212, 175, 55, 0.15);
-            color: var(--primary);
-        }
-
-        .seat-item .status-tag.your {
-            background: rgba(46, 204, 113, 0.15);
-            color: var(--success);
-        }
-
-        .seat-item .status-tag.empty {
-            background: rgba(255, 255, 255, 0.05);
-            color: var(--text-muted);
-        }
-
-        .seats-actions {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 8px;
-        }
-
-        .seats-actions .btn {
-            padding: 12px;
-            border: none;
-            border-radius: var(--radius-sm);
-            font-weight: 700;
-            font-size: 14px;
-            cursor: pointer;
-            font-family: 'Cairo', sans-serif;
-            transition: var(--transition);
-        }
-
-        .seats-actions .btn:active {
-            transform: scale(0.96);
-        }
-
-        .seats-actions .btn.primary {
-            background: var(--primary-gradient);
-            color: #fff;
-        }
-
-        .seats-actions .btn.primary:hover {
-            box-shadow: 0 4px 20px rgba(212, 175, 55, 0.3);
-        }
-
-        .seats-actions .btn.danger {
-            background: var(--danger);
-            color: #fff;
-        }
-
-        .seats-actions .btn.danger:hover {
-            box-shadow: 0 4px 20px rgba(231, 76, 60, 0.3);
-        }
-
-        .seats-actions .btn.secondary {
-            background: rgba(255, 255, 255, 0.06);
-            color: var(--text-light);
-            grid-column: 1 / -1;
-        }
-
-        .seats-actions .btn.secondary:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .seats-actions .btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-
-        /* ============================================
-           📊 STATS SCREEN
-           ============================================ */
-        #statsScreen {
-            padding: 16px;
-        }
-
-        .stats-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-        }
-
-        .stat-card {
-            background: var(--bg-card);
-            padding: 16px;
-            border-radius: var(--radius);
-            text-align: center;
-            border: 1px solid rgba(212, 175, 55, 0.05);
-            box-shadow: var(--shadow);
-            transition: var(--transition);
-        }
-
-        .stat-card:hover {
-            transform: translateY(-2px);
-        }
-
-        .stat-card .icon {
+        .telegram-btn .icon {
             font-size: 28px;
-            display: block;
-            margin-bottom: 4px;
+            position: relative;
+            z-index: 1;
         }
 
-        .stat-card .value {
-            font-size: 24px;
-            font-weight: 800;
-            color: var(--primary);
+        .telegram-btn .text {
+            position: relative;
+            z-index: 1;
         }
 
-        .stat-card .label {
-            font-size: 11px;
-            color: var(--text-muted);
-        }
-
-        .leaderboard-box {
-            background: var(--bg-card);
-            border-radius: var(--radius);
-            padding: 16px;
-            flex: 1;
-            overflow-y: auto;
-            max-height: 280px;
-            border: 1px solid rgba(212, 175, 55, 0.05);
-            box-shadow: var(--shadow);
-        }
-
-        .leaderboard-box h3 {
-            color: var(--primary);
-            font-size: 16px;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .leaderboard-box .lb-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 12px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        /* ============================================================
+           ➖ الفاصل
+           ============================================================ */
+        .or-divider {
+            margin: 25px 0;
+            color: #444;
             font-size: 13px;
-            transition: var(--transition);
-            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            letter-spacing: 2px;
         }
 
-        .leaderboard-box .lb-item:hover {
-            background: rgba(255, 255, 255, 0.03);
-        }
-
-        .leaderboard-box .lb-item .rank {
-            font-weight: 700;
-            color: var(--text-muted);
-            min-width: 28px;
-        }
-
-        .leaderboard-box .lb-item .name {
-            font-weight: 600;
+        .or-divider::before,
+        .or-divider::after {
+            content: '';
             flex: 1;
-            margin: 0 8px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            height: 1px;
+            background: linear-gradient(to right, transparent, rgba(212, 175, 55, 0.3), transparent);
         }
 
-        .leaderboard-box .lb-item .elo {
-            color: var(--primary);
-            font-weight: 700;
-        }
-
-        .leaderboard-box .lb-item .rank-badge {
-            font-size: 10px;
-            padding: 2px 10px;
-            border-radius: 12px;
-            background: rgba(212, 175, 55, 0.1);
-            color: var(--primary);
-        }
-
-        .leaderboard-box .lb-item.top1 .rank { color: #ffd700; }
-        .leaderboard-box .lb-item.top2 .rank { color: #c0c0c0; }
-        .leaderboard-box .lb-item.top3 .rank { color: #cd7f32; }
-
-        .leaderboard-box .lb-empty {
-            text-align: center;
-            color: var(--text-muted);
-            padding: 20px;
-        }
-
-        /* ============================================
-           👤 PROFILE SCREEN
-           ============================================ */
-        #profileScreen {
-            padding: 16px;
-        }
-
-        .profile-content {
-            flex: 1;
+        /* ============================================================
+           📝 نموذج تسجيل الدخول
+           ============================================================ */
+        .login-form {
             display: flex;
             flex-direction: column;
-            align-items: center;
-            gap: 12px;
-            padding: 20px 0;
+            gap: 10px;
         }
 
-        .profile-avatar {
-            width: 88px;
-            height: 88px;
-            border-radius: 50%;
-            background: var(--bg-card);
-            border: 3px solid var(--primary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 40px;
-            color: var(--primary);
-            overflow: hidden;
-            box-shadow: var(--shadow), var(--shadow-glow);
+        .login-form .input-group {
+            position: relative;
         }
 
-        .profile-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .profile-name {
-            font-size: 22px;
-            font-weight: 800;
-        }
-
-        .profile-id {
-            color: var(--text-muted);
-            font-size: 13px;
-        }
-
-        .profile-rank-badge {
-            padding: 6px 24px;
-            border-radius: 30px;
-            font-weight: 700;
-            font-size: 15px;
-            background: rgba(212, 175, 55, 0.12);
-            color: var(--primary);
-            border: 1px solid rgba(212, 175, 55, 0.15);
-        }
-
-        .profile-stats {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-            width: 100%;
-            max-width: 360px;
-        }
-
-        .profile-stat {
-            background: var(--bg-card);
-            padding: 14px;
-            border-radius: var(--radius);
-            text-align: center;
-            border: 1px solid rgba(212, 175, 55, 0.05);
-            box-shadow: var(--shadow);
-        }
-
-        .profile-stat .value {
-            font-size: 20px;
-            font-weight: 800;
-            color: var(--primary);
-        }
-
-        .profile-stat .label {
-            font-size: 10px;
-            color: var(--text-muted);
-        }
-
-        .profile-balance {
-            color: var(--text-muted);
-            font-size: 15px;
-            margin-top: 4px;
-            background: var(--bg-card);
-            padding: 10px 24px;
-            border-radius: var(--radius);
-            border: 1px solid rgba(212, 175, 55, 0.05);
-            box-shadow: var(--shadow);
-        }
-
-        .profile-balance span {
-            color: var(--primary);
-            font-weight: 700;
-        }
-
-        /* ============================================
-           💬 TOAST NOTIFICATIONS
-           ============================================ */
-        .toast-container {
-            position: fixed;
-            top: calc(var(--header-height) + 12px);
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 99999;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 6px;
+        .login-form .input-group .icon {
+            position: absolute;
+            left: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 18px;
+            opacity: 0.5;
             pointer-events: none;
-            width: 90%;
-            max-width: 420px;
         }
 
-        .toast {
-            padding: 10px 20px;
-            background: rgba(0, 0, 0, 0.92);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border-radius: var(--radius-sm);
-            color: #fff;
-            font-family: 'Cairo', sans-serif;
-            font-size: 13px;
-            border-right: 4px solid var(--info);
-            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
-            animation: toastIn 0.4s ease;
+        .login-form input {
             width: 100%;
+            padding: 16px 20px 16px 50px;
+            border-radius: 60px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            color: white;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.3s ease;
+            font-family: 'Cairo', sans-serif;
+        }
+
+        .login-form input:focus {
+            border-color: var(--gold);
+            box-shadow: 0 0 30px rgba(212, 175, 55, 0.08);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .login-form input::placeholder {
+            color: #555;
+        }
+
+        .login-form button {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+            border: none;
+            border-radius: 60px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 4px 25px rgba(212, 175, 55, 0.2);
+            font-family: 'Cairo', sans-serif;
+            color: var(--dark);
+            margin-top: 5px;
+        }
+
+        .login-form button:hover {
+            transform: scale(1.02);
+            box-shadow: 0 8px 40px rgba(212, 175, 55, 0.4);
+        }
+
+        .login-form button:active {
+            transform: scale(0.97);
+        }
+
+        /* ============================================================
+           📊 حالات ورسائل
+           ============================================================ */
+        .loading-spinner {
+            display: none;
+            margin: 15px auto;
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(212, 175, 55, 0.15);
+            border-top: 3px solid var(--gold);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status-message {
+            margin-top: 12px;
+            padding: 12px 16px;
+            border-radius: 16px;
+            font-size: 14px;
+            display: none;
             text-align: center;
-            pointer-events: auto;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .status-message.error {
+            display: block;
+            background: rgba(231, 76, 60, 0.15);
+            border: 1px solid rgba(231, 76, 60, 0.3);
+            color: #e74c3c;
+        }
+
+        .status-message.success {
+            display: block;
+            background: rgba(46, 204, 113, 0.15);
+            border: 1px solid rgba(46, 204, 113, 0.3);
+            color: #2ecc71;
+        }
+
+        .status-message.info {
+            display: block;
+            background: rgba(52, 152, 219, 0.15);
+            border: 1px solid rgba(52, 152, 219, 0.3);
+            color: #3498db;
+        }
+
+        /* ============================================================
+           🔒 التذييل
+           ============================================================ */
+        .footer {
+            margin-top: 25px;
+            color: #444;
+            font-size: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
-            font-weight: 500;
+            letter-spacing: 0.5px;
         }
 
-        .toast.success { border-color: var(--success); }
-        .toast.error { border-color: var(--danger); }
-        .toast.warning { border-color: var(--warning); }
-        .toast.info { border-color: var(--info); }
-
-        .toast i {
-            font-size: 16px;
-        }
-        .toast.success i { color: var(--success); }
-        .toast.error i { color: var(--danger); }
-        .toast.warning i { color: var(--warning); }
-        .toast.info i { color: var(--info); }
-
-        @keyframes toastIn {
-            0% { opacity: 0; transform: translateY(-20px) scale(0.95); }
-            100% { opacity: 1; transform: translateY(0) scale(1); }
+        .footer .lock {
+            font-size: 14px;
         }
 
-        @keyframes toastOut {
-            0% { opacity: 1; transform: translateY(0) scale(1); }
-            100% { opacity: 0; transform: translateY(-20px) scale(0.95); }
+        .footer .version {
+            color: #333;
+            font-size: 10px;
+            margin-left: 10px;
         }
 
-        .toast.out {
-            animation: toastOut 0.3s ease forwards;
-        }
-
-        /* ============================================
-           📱 LANDSCAPE WARNING
-           ============================================ */
-        .landscape-warning {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.95);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 99998;
-            flex-direction: column;
-            gap: 16px;
-            padding: 30px;
-            text-align: center;
-        }
-
-        .landscape-warning .icon {
-            font-size: 64px;
-            animation: rotateIcon 2s ease-in-out infinite;
-        }
-
-        @keyframes rotateIcon {
-            0%, 100% { transform: rotate(0deg); }
-            50% { transform: rotate(90deg); }
-        }
-
-        .landscape-warning h2 {
-            color: var(--primary);
-            font-size: 24px;
-            font-weight: 800;
-        }
-
-        .landscape-warning p {
-            color: var(--text-muted);
-            font-size: 16px;
-            max-width: 350px;
-        }
-
-        /* ============================================
-           📱 RESPONSIVE DESIGN
-           ============================================ */
-        @media (max-width: 600px) {
-            :root {
-                --header-height: 50px;
-                --bottom-nav-height: 58px;
+        /* ============================================================
+           📱 التجاوب مع الشاشات الصغيرة
+           ============================================================ */
+        @media (max-width: 480px) {
+            .container {
+                padding: 30px 20px;
+                border-radius: 32px;
             }
 
-            .top-header .brand {
-                font-size: 15px;
-            }
-            .top-header .brand i {
-                font-size: 18px;
-            }
-            .top-header .user-id {
-                font-size: 10px;
-            }
-            .top-header .balance {
-                font-size: 12px;
-                padding: 2px 10px;
-            }
-
-            .bottom-nav .nav-item {
-                font-size: 9px;
-                padding: 4px 8px;
-                min-width: 40px;
-            }
-            .bottom-nav .nav-item i {
-                font-size: 17px;
-            }
-
-            .rooms-grid {
-                grid-template-columns: 1fr;
-            }
-            .seats-grid {
-                grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
-            }
-            .seats-actions {
-                grid-template-columns: 1fr;
-            }
-            .stats-grid {
-                grid-template-columns: 1fr 1fr;
-            }
-            .profile-stats {
-                grid-template-columns: 1fr 1fr;
-            }
-
-            .auth-box {
-                padding: 28px 20px;
-            }
-            .auth-box h1 {
+            h1 {
                 font-size: 26px;
             }
-            .auth-box .logo-icon {
-                font-size: 48px;
-            }
 
-            .game-logo {
-                max-width: 200px;
-            }
-            .game-logo .placeholder {
+            .logo {
                 font-size: 56px;
             }
-            .main-title h1 {
-                font-size: 22px;
-            }
-            .play-btn {
+
+            .telegram-btn {
                 font-size: 17px;
+                padding: 15px 20px;
+            }
+
+            .login-form input {
+                padding: 14px 16px 14px 44px;
+                font-size: 15px;
+            }
+
+            .login-form button {
+                font-size: 16px;
                 padding: 14px;
-                max-width: 220px;
-            }
-
-            .lobby-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 8px;
-            }
-            .lobby-stats {
-                font-size: 11px;
-            }
-
-            .seats-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 8px;
-            }
-
-            .profile-avatar {
-                width: 72px;
-                height: 72px;
-                font-size: 32px;
-            }
-            .profile-name {
-                font-size: 18px;
-            }
-
-            .leaderboard-box {
-                max-height: 200px;
-            }
-
-            .toast {
-                font-size: 12px;
-                padding: 8px 16px;
             }
         }
 
-        @media (max-width: 400px) {
-            .top-header .user-id .text {
-                display: none;
+        @media (max-width: 360px) {
+            .container {
+                padding: 20px 15px;
+                border-radius: 24px;
             }
-            .rooms-grid {
-                grid-template-columns: 1fr;
-            }
-            .seats-grid {
-                grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
-            }
-            .seats-grid .seat-item {
-                min-height: 60px;
-                padding: 8px 4px;
-            }
-            .seats-grid .seat-item .name {
-                font-size: 8px;
-            }
-            .seats-grid .seat-item .num {
-                font-size: 10px;
-            }
-            .stats-grid {
-                grid-template-columns: 1fr 1fr;
-            }
-            .stat-card .value {
-                font-size: 18px;
-            }
-            .stat-card .icon {
+
+            h1 {
                 font-size: 22px;
             }
-        }
 
-        @media (min-width: 768px) {
-            .rooms-grid {
-                grid-template-columns: repeat(2, 1fr);
+            .logo {
+                font-size: 44px;
             }
-            .seats-grid {
-                grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-            }
-        }
 
-        @media (min-width: 1024px) {
-            .rooms-grid {
-                grid-template-columns: repeat(3, 1fr);
-            }
-            .seats-grid {
-                grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+            .telegram-btn {
+                font-size: 15px;
+                padding: 12px 16px;
             }
         }
 
-        /* ============================================
-           🔧 UTILITY CLASSES
-           ============================================ */
-        .text-muted { color: var(--text-muted); }
-        .text-center { text-align: center; }
-        .flex-1 { flex: 1; }
-        .hidden { display: none !important; }
-        .gap-4 { gap: 4px; }
-        .gap-8 { gap: 8px; }
-        .gap-12 { gap: 12px; }
-        .gap-16 { gap: 16px; }
-        .mt-8 { margin-top: 8px; }
-        .mt-16 { margin-top: 16px; }
-        .mb-8 { margin-bottom: 8px; }
-        .w-full { width: 100%; }
+        /* ============================================================
+           🌙 دعم الوضع المظلم (افتراضي)
+           ============================================================ */
+        @media (prefers-color-scheme: light) {
+            body {
+                background: radial-gradient(ellipse at 30% 20%, #e8e8e8, #c0c0c0);
+            }
+            .container {
+                background: rgba(255, 255, 255, 0.95);
+                border-color: rgba(212, 175, 55, 0.4);
+            }
+            h1 { color: var(--gold-dark); }
+            .login-form input {
+                background: rgba(0, 0, 0, 0.05);
+                color: #222;
+            }
+            .login-form input::placeholder { color: #999; }
+            .subtitle { color: #666; }
+            .footer { color: #999; }
+        }
     </style>
 </head>
 <body>
 
-    <!-- ============================================
-       🔄 LANDSCAPE WARNING
-    ============================================ -->
-    <div class="landscape-warning" id="landscapeWarning">
-        <div class="icon">🔄</div>
-        <h2>يرجى تدوير الجهاز</h2>
-        <p>المعركة تعمل في الوضع الأفقي فقط للحصول على أفضل تجربة</p>
-    </div>
+    <!-- ============================================================
+    🌟 خلفية متحركة
+    ============================================================ -->
+    <div class="bg-particles" id="particles"></div>
+    <div class="bg-glow"></div>
 
-    <!-- ============================================
-       🔄 LOADING SCREEN
-    ============================================ -->
-    <div id="loadingScreen" class="screen active">
-        <div class="loader">
-            <div class="logo">🎮</div>
-            <div class="spinner"></div>
-            <div class="text">جاري تحميل المعركة...</div>
+    <!-- ============================================================
+    📦 حاوية تسجيل الدخول
+    ============================================================ -->
+    <div class="container">
+        <div class="logo-wrapper">
+            <div class="logo">⚔️</div>
+            <div class="logo-ring"></div>
         </div>
-    </div>
 
-    <!-- ============================================
-       📌 TOP HEADER
-    ============================================ -->
-    <header class="top-header" id="topHeader">
-        <div class="brand">
-            <i class="fas fa-gamepad"></i>
-            <span>Battle Tanks</span>
-        </div>
-        <div class="user-info">
-            <div class="user-id">
-                <i class="fas fa-user"></i>
-                <span class="text">🆔</span>
-                <span id="headerUserId">---</span>
-            </div>
-            <div class="balance">
-                <i class="fas fa-coins"></i>
-                <span id="headerBalance">0</span>
-            </div>
-        </div>
-    </header>
+        <h1>
+            BATTLE TANKS
+            <span class="elite">✦ ELITE ✦</span>
+        </h1>
 
-    <!-- ============================================
-       🔐 AUTH SCREEN
-    ============================================ -->
-    <div id="authScreen" class="screen">
-        <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:20px;">
-            <div class="auth-box">
-                <span class="logo-icon">🎮</span>
-                <h1>Battle Tanks</h1>
-                <p class="sub">ساحة المعركة الإلكترونية</p>
-                <div class="auth-input-group">
-                    <i class="fas fa-user icon"></i>
-                    <input class="auth-input" id="authUserId" placeholder="أدخل معرف تيليغرام" type="text" autocomplete="username">
-                </div>
-                <button class="auth-btn" id="authLoginBtn">
-                    <i class="fas fa-sign-in-alt"></i> تسجيل الدخول
-                </button>
-                <div class="auth-footer">
-                    المعرف موجود في رابط تيليغرام: <code>?user_id=XXXXXXXXX</code>
-                </div>
-            </div>
-        </div>
-    </div>
+        <p class="subtitle">
+            ساحة المعركة الإلكترونية <span>النهائية</span>
+        </p>
 
-    <!-- ============================================
-       🏠 MAIN SCREEN
-    ============================================ -->
-    <div id="mainScreen" class="screen">
-        <div class="main-content">
-            <div class="game-logo" id="gameLogo">
-                <div class="placeholder">🎮</div>
-                <span class="badge-status"><i class="fas fa-circle"></i> مباشر</span>
-            </div>
-            <div class="main-title">
-                <h1>Battle Tanks Royale</h1>
-                <p>ساحة معركة حرة للجميع</p>
-            </div>
-            <button class="play-btn" id="playBtn">
-                <i class="fas fa-gamepad"></i> العب الآن
-            </button>
-        </div>
-    </div>
-
-    <!-- ============================================
-       🏠 LOBBY SCREEN
-    ============================================ -->
-    <div id="lobbyScreen" class="screen">
-        <div class="lobby-header">
-            <h2><i class="fas fa-door-open"></i> لوبي المعركة</h2>
-            <div class="lobby-stats">
-                <span><i class="fas fa-users"></i> <span class="num" id="lobbyPlayers">0</span></span>
-                <span><i class="fas fa-door-open"></i> <span class="num" id="lobbyRooms">0</span></span>
-                <span><i class="fas fa-gamepad"></i> <span class="num" id="lobbyGames">0</span></span>
-            </div>
-        </div>
-        <div class="rooms-grid" id="roomsGrid">
-            <div class="empty-rooms">
-                <i class="fas fa-spinner fa-spin"></i>
-                <p>جاري تحميل الغرف...</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- ============================================
-       💺 SEATS SCREEN
-    ============================================ -->
-    <div id="seatsScreen" class="screen">
-        <div class="seats-header">
-            <div class="info">
-                <h2 id="seatsRoomName"><i class="fas fa-door-open"></i> غرفة</h2>
-                <div class="sub" id="seatsRoomInfo">سعر المقعد: 1$ | 0/8 لاعبين</div>
-            </div>
-            <div class="status-badge waiting" id="seatsStatus">⏳ في الانتظار</div>
-        </div>
-        <div class="seats-grid" id="seatsGrid">
-            <div class="empty-rooms" style="grid-column:1/-1;">
-                <i class="fas fa-spinner fa-spin"></i>
-                <p>جاري تحميل المقاعد...</p>
-            </div>
-        </div>
-        <div class="seats-actions">
-            <button class="btn primary" id="seatsJoinBtn"><i class="fas fa-chair"></i> حجز مقعد</button>
-            <button class="btn danger" id="seatsLeaveBtn"><i class="fas fa-sign-out-alt"></i> ترك المقعد</button>
-            <button class="btn secondary" id="seatsBackBtn"><i class="fas fa-arrow-right"></i> العودة للوبي</button>
-        </div>
-    </div>
-
-    <!-- ============================================
-       📊 STATS SCREEN
-    ============================================ -->
-    <div id="statsScreen" class="screen">
-        <div class="stats-content">
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <span class="icon">🏆</span>
-                    <div class="value" id="sWins">0</div>
-                    <div class="label">انتصارات</div>
-                </div>
-                <div class="stat-card">
-                    <span class="icon">💀</span>
-                    <div class="value" id="sKills">0</div>
-                    <div class="label">إقصاءات</div>
-                </div>
-                <div class="stat-card">
-                    <span class="icon">🎯</span>
-                    <div class="value" id="sElo">1000</div>
-                    <div class="label">التصنيف</div>
-                </div>
-                <div class="stat-card">
-                    <span class="icon">⭐</span>
-                    <div class="value" id="sRank">برونزي</div>
-                    <div class="label">الرتبة</div>
-                </div>
-            </div>
-            <div class="leaderboard-box">
-                <h3><i class="fas fa-trophy"></i> المتصدرون</h3>
-                <div id="leaderboardList">
-                    <div class="lb-empty">
-                        <i class="fas fa-spinner fa-spin"></i>
-                        <p>جاري التحميل...</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ============================================
-       👤 PROFILE SCREEN
-    ============================================ -->
-    <div id="profileScreen" class="screen">
-        <div class="profile-content">
-            <div class="profile-avatar" id="profileAvatar">👤</div>
-            <div class="profile-name" id="profileName">اللاعب</div>
-            <div class="profile-id">🆔 <span id="profileId">---</span></div>
-            <div class="profile-rank-badge" id="profileRank">برونزي</div>
-            <div class="profile-stats">
-                <div class="profile-stat">
-                    <div class="value" id="pWins">0</div>
-                    <div class="label">🏆 انتصارات</div>
-                </div>
-                <div class="profile-stat">
-                    <div class="value" id="pKills">0</div>
-                    <div class="label">💀 إقصاءات</div>
-                </div>
-                <div class="profile-stat">
-                    <div class="value" id="pGames">0</div>
-                    <div class="label">🎮 مباريات</div>
-                </div>
-            </div>
-            <div class="profile-balance">💰 الرصيد: <span id="pBalance">0</span>$</div>
-        </div>
-    </div>
-
-    <!-- ============================================
-       📱 BOTTOM NAVIGATION
-    ============================================ -->
-    <nav class="bottom-nav" id="bottomNav">
-        <button class="nav-item active" data-screen="mainScreen">
-            <i class="fas fa-home"></i>
-            <span>الرئيسية</span>
+        <!-- ============================================================
+        🔘 زر تيليغرام
+        ============================================================ -->
+        <button class="telegram-btn" id="telegramLoginBtn">
+            <span class="icon">🚀</span>
+            <span class="text">تسجيل الدخول عبر تيليغرام</span>
         </button>
-        <button class="nav-item" data-screen="lobbyScreen">
-            <i class="fas fa-gamepad"></i>
-            <span>اللوبي</span>
-        </button>
-        <button class="nav-item" data-screen="statsScreen">
-            <i class="fas fa-chart-bar"></i>
-            <span>إحصائيات</span>
-        </button>
-        <button class="nav-item" data-screen="profileScreen">
-            <i class="fas fa-user"></i>
-            <span>ملفي</span>
-        </button>
-        <button class="nav-item admin-nav" id="adminNavBtn" style="display:none;" onclick="window.location.href='admin.html'">
-            <i class="fas fa-cog"></i>
-            <span>إدارة</span>
-        </button>
-    </nav>
 
-    <!-- ============================================
-       💬 TOAST CONTAINER
-    ============================================ -->
-    <div class="toast-container" id="toastContainer"></div>
+        <div class="or-divider">أو</div>
 
-    <!-- ============================================
-       🎮 GAME CONTAINER (يتم تحميله عند بدء اللعبة)
-    ============================================ -->
-    <div id="gameContainer" style="display:none;"></div>
+        <!-- ============================================================
+        📝 نموذج تسجيل الدخول
+        ============================================================ -->
+        <form class="login-form" id="loginForm" autocomplete="off">
+            <div class="input-group">
+                <span class="icon">👤</span>
+                <input
+                    type="text"
+                    id="username"
+                    placeholder="اسم المستخدم"
+                    autocomplete="username"
+                    required
+                >
+            </div>
 
-    <!-- ============================================
-       📜 JAVASCRIPT
-    ============================================ -->
+            <div class="input-group">
+                <span class="icon">🔒</span>
+                <input
+                    type="password"
+                    id="password"
+                    placeholder="كلمة المرور"
+                    autocomplete="current-password"
+                    required
+                >
+            </div>
+
+            <button type="submit">🎖️ دخول إلى المعركة</button>
+        </form>
+
+        <!-- ============================================================
+        📊 حالات ورسائل
+        ============================================================ -->
+        <div class="loading-spinner" id="loadingSpinner"></div>
+        <div class="status-message" id="statusMessage"></div>
+
+        <!-- ============================================================
+        🔒 التذييل
+        ============================================================ -->
+        <div class="footer">
+            <span class="lock">🔒</span>
+            يتم تسجيل الدخول بشكل آمن عبر تيليغرام
+            <span class="version">v6.0</span>
+        </div>
+    </div>
+
+    <!-- ============================================================
+    📜 JavaScript
+    ============================================================ -->
     <script>
-        // ============================================
-        // ⚙️ CONFIGURATION
-        // ============================================
-        const CONFIG = {
-            SERVER_URL: window.location.hostname === 'localhost' 
-                ? 'http://localhost:3000' 
-                : 'https://game1-duy1.onrender.com',
-            ADMIN_ID: '7011476249'
-        };
+        // ============================================================
+        // 🌟 إنشاء جسيمات الخلفية
+        // ============================================================
+        (function createParticles() {
+            const container = document.getElementById('particles');
+            for (let i = 0; i < 50; i++) {
+                const span = document.createElement('span');
+                const size = 2 + Math.random() * 4;
+                const duration = 15 + Math.random() * 25;
+                const delay = Math.random() * 20;
+                const x = Math.random() * 100;
+                span.style.cssText = `
+                    width: ${size}px;
+                    height: ${size}px;
+                    left: ${x}%;
+                    animation-duration: ${duration}s;
+                    animation-delay: ${delay}s;
+                `;
+                container.appendChild(span);
+            }
+        })();
 
-        console.log('🎮 Battle Tanks Royale v12.0.0');
-        console.log('📡 Server:', CONFIG.SERVER_URL);
+        // ============================================================
+        // 🔐 استخلاص معرف تيليغرام من الرابط
+        // ============================================================
+        const urlParams = new URLSearchParams(window.location.search);
+        const userId = urlParams.get('user_id');
 
-        // ============================================
-        // 📦 STATE
-        // ============================================
-        const state = {
-            userId: null,
-            username: 'اللاعب',
-            balance: 0,
-            elo: 1000,
-            kills: 0,
-            wins: 0,
-            gamesPlayed: 0,
-            isAdmin: false,
-            roomId: null,
-            gameActive: false,
-            isInGame: false,
-            socket: null,
-            isAuthenticated: false,
-            roomJoined: false,
-            gameStarting: false,
-            isInSeatsScreen: false,
-            currentRoomData: null,
-            leaderboard: [],
-            rooms: [],
-            reconnectAttempts: 0,
-            maxReconnectAttempts: 5
-        };
-
-        let socket = null;
-
-        // ============================================
-        // 🛠️ DOM HELPERS
-        // ============================================
-        const $ = id => document.getElementById(id);
-        const $$ = selector => document.querySelectorAll(selector);
-
-        function showScreen(id) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            const el = $(id);
-            if (el) el.classList.add('active');
-            document.querySelectorAll('.bottom-nav .nav-item').forEach(item => {
-                item.classList.toggle('active', item.dataset.screen === id);
-            });
+        if (userId) {
+            localStorage.setItem('telegramId', userId);
+            localStorage.setItem('telegramUsername', 'user_' + userId);
+            window.location.href = '/game?user_id=' + userId;
         }
 
-        function showToast(msg, type = 'info') {
-            const container = $('toastContainer');
-            if (!container) return;
+        // ============================================================
+        // 📱 تسجيل الدخول عبر تيليغرام
+        // ============================================================
+        document.getElementById('telegramLoginBtn').addEventListener('click', function() {
+            const statusMsg = document.getElementById('statusMessage');
+            const spinner = document.getElementById('loadingSpinner');
 
-            const icons = {
-                success: 'fa-check-circle',
-                error: 'fa-exclamation-circle',
-                warning: 'fa-exclamation-triangle',
-                info: 'fa-info-circle'
-            };
+            statusMsg.className = 'status-message';
+            statusMsg.style.display = 'none';
+            spinner.style.display = 'block';
 
-            const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-            toast.innerHTML = `<i class="fas ${icons[type] || icons.info}"></i> ${msg}`;
-            container.appendChild(toast);
+            // فتح بوت تيليغرام
+            const botUsername = '@YourBattleTanksBot';
+            window.open(`https://t.me/${botUsername}?start=login`, '_blank');
 
+            // محاكاة استقبال معرف المستخدم (في الإنتاج، سيأتي من البوت)
             setTimeout(() => {
-                toast.classList.add('out');
-                setTimeout(() => toast.remove(), 400);
-            }, 3500);
-        }
+                const fakeId = Math.floor(Math.random() * 9000000) + 1000000;
+                localStorage.setItem('telegramId', fakeId);
+                localStorage.setItem('telegramUsername', 'user_' + fakeId);
+                spinner.style.display = 'none';
+                statusMsg.className = 'status-message success';
+                statusMsg.style.display = 'block';
+                statusMsg.textContent = '✅ تم تسجيل الدخول بنجاح! جاري التوجيه...';
+                setTimeout(() => {
+                    window.location.href = '/game?user_id=' + fakeId;
+                }, 1000);
+            }, 2000);
+        });
 
-        function showLoading(show) {
-            $('loadingScreen').classList.toggle('active', show);
-        }
+        // ============================================================
+        // 🔐 تسجيل الدخول بكلمة مرور
+        // ============================================================
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
 
-        function getRank(elo) {
-            const ranks = [
-                { name: 'برونزي', minElo: 0, color: '#cd7f32', icon: '🥉' },
-                { name: 'فضي', minElo: 1000, color: '#c0c0c0', icon: '🥈' },
-                { name: 'ذهبي', minElo: 1200, color: '#ffd700', icon: '🥇' },
-                { name: 'بلاتيني', minElo: 1400, color: '#e5e4e2', icon: '💎' },
-                { name: 'ماسي', minElo: 1600, color: '#b9f2ff', icon: '👑' },
-                { name: 'أسطوري', minElo: 1800, color: '#ff6b6b', icon: '⚡' },
-                { name: 'خارق', minElo: 2000, color: '#ff00ff', icon: '🌟' }
-            ];
-            let current = ranks[0];
-            for (const rank of ranks) {
-                if (elo >= rank.minElo) current = rank;
-            }
-            return current;
-        }
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const statusMsg = document.getElementById('statusMessage');
+            const spinner = document.getElementById('loadingSpinner');
 
-        function updateHeaderUI() {
-            $('headerUserId').textContent = state.userId || '---';
-            $('headerBalance').textContent = state.balance || 0;
-        }
+            statusMsg.className = 'status-message';
+            statusMsg.style.display = 'none';
+            spinner.style.display = 'block';
 
-        // ============================================
-        // 🔌 SOCKET CONNECTION
-        // ============================================
-        function connectSocket() {
-            return new Promise((resolve, reject) => {
-                try {
-                    if (socket && socket.connected) {
-                        resolve(socket);
-                        return;
-                    }
-
-                    socket = io(CONFIG.SERVER_URL, {
-                        transports: ['websocket', 'polling'],
-                        reconnection: true,
-                        reconnectionAttempts: 20,
-                        reconnectionDelay: 2000,
-                        reconnectionDelayMax: 10000,
-                        timeout: 30000,
-                        pingTimeout: 60000,
-                        pingInterval: 25000,
-                        path: '/socket.io'
-                    });
-
-                    let timeout = setTimeout(() => {
-                        reject(new Error('Connection timeout'));
-                    }, 30000);
-
-                    socket.on('connect', () => {
-                        clearTimeout(timeout);
-                        console.log('✅ Connected to server');
-                        state.socket = socket;
-                        state.reconnectAttempts = 0;
-                        showLoading(false);
-                        showToast('✅ تم الاتصال بالخادم', 'success');
-                        resolve(socket);
-                    });
-
-                    socket.on('connect_error', (err) => {
-                        console.error('❌ Connection error:', err.message);
-                        showToast('⚠️ فشل الاتصال بالخادم', 'warning');
-                        if (state.reconnectAttempts < state.maxReconnectAttempts) {
-                            state.reconnectAttempts++;
-                            setTimeout(() => connectSocket(), 3000);
-                        }
-                    });
-
-                    socket.on('disconnect', () => {
-                        console.log('🔌 Disconnected');
-                        showToast('⚠️ انقطع الاتصال بالخادم', 'warning');
-                    });
-
-                    socket.on('reconnect', () => {
-                        console.log('🔄 Reconnected');
-                        showToast('✅ تم إعادة الاتصال', 'success');
-                        if (state.userId) authenticate(state.userId);
-                    });
-
-                } catch (e) {
-                    reject(e);
-                }
-            });
-        }
-
-        // ============================================
-        // 🔐 AUTHENTICATION
-        // ============================================
-        function authenticate(userId) {
-            if (!socket) return;
-            if (!userId) {
-                const params = new URLSearchParams(window.location.search);
-                userId = params.get('user_id');
-                if (!userId) {
-                    showToast('⚠️ يرجى إدخال المعرف', 'warning');
-                    showScreen('authScreen');
-                    return;
-                }
-            }
-
-            state.userId = userId;
-            localStorage.setItem('btUserId', userId);
-            console.log('🔐 Authenticating:', userId);
-            socket.emit('auth', { userId: userId });
-        }
-
-        // ============================================
-        // 📡 SOCKET EVENTS
-        // ============================================
-        function setupSocketEvents() {
-            if (!socket) return;
-
-            // ---- AUTH ----
-            socket.on('auth_success', (data) => {
-                console.log('✅ Auth success:', data);
-                state.userId = data.userId || data.telegramId;
-                state.username = data.username || 'اللاعب';
-                state.balance = data.balance || 0;
-                state.elo = data.elo || 1000;
-                state.kills = data.kills || 0;
-                state.wins = data.wins || 0;
-                state.gamesPlayed = data.gamesPlayed || 0;
-                state.isAdmin = data.isAdmin || false;
-                state.isAuthenticated = true;
-
-                updateHeaderUI();
-                updateStatsUI(data);
-                updateProfileUI(data);
-
-                if (state.isAdmin) {
-                    $('adminNavBtn').style.display = 'flex';
-                }
-
-                showLoading(false);
-                showScreen('mainScreen');
-                showToast(`👋 مرحباً ${state.username}`, 'success');
-
-                socket.emit('get_stats');
-                socket.emit('get_leaderboard');
-                socket.emit('join_lobby');
-            });
-
-            socket.on('auth_error', (data) => {
-                showLoading(false);
-                showToast('❌ ' + data.message, 'error');
-                showScreen('authScreen');
-            });
-
-            // ---- VISUAL SETTINGS ----
-            socket.on('visual_settings', (data) => {
-                if (data && data.game_logo) {
-                    const logo = $('gameLogo');
-                    logo.innerHTML = `<img src="${data.game_logo.imageUrl}" alt="شعار اللعبة">
-                        <span class="badge-status"><i class="fas fa-circle"></i> مباشر</span>`;
-                }
-            });
-
-            socket.on('server_config', (data) => {
-                if (data && data.appearance && data.appearance.gameLogo) {
-                    const logo = $('gameLogo');
-                    logo.innerHTML = `<img src="${data.appearance.gameLogo}" alt="شعار اللعبة">
-                        <span class="badge-status"><i class="fas fa-circle"></i> مباشر</span>`;
-                }
-            });
-
-            // ---- LOBBY ----
-            socket.on('lobby_joined', (data) => {
-                if (data.balance !== undefined) state.balance = data.balance;
-                if (data.elo !== undefined) state.elo = data.elo;
-                updateHeaderUI();
-            });
-
-            socket.on('rooms_list', (data) => {
-                state.rooms = data.rooms || [];
-                renderRooms(state.rooms);
-            });
-
-            socket.on('lobby_stats', (data) => {
-                $('lobbyPlayers').textContent = data.totalPlayers || 0;
-                $('lobbyRooms').textContent = data.totalRooms || 0;
-                $('lobbyGames').textContent = data.activeGames || 0;
-            });
-
-            // ---- ROOM ----
-            socket.on('room_joined', (data) => {
-                state.roomId = data.roomId;
-                state.roomJoined = true;
-                state.currentRoomData = data;
-                state.balance = data.balance || state.balance;
-                updateHeaderUI();
-                showToast(data.message || '✅ تم الانضمام للغرفة', 'success');
-                showRoomSeats(data);
-            });
-
-            socket.on('room_left', (data) => {
-                state.roomId = null;
-                state.roomJoined = false;
-                state.currentRoomData = null;
-                state.gameStarting = false;
-                state.isInSeatsScreen = false;
-                if (data && data.refunded) {
-                    state.balance = data.refunded || state.balance;
-                    updateHeaderUI();
-                }
-                showToast(data?.message || '🚪 تم مغادرة الغرفة', 'info');
-                showScreen('lobbyScreen');
-                socket.emit('list_rooms');
-            });
-
-            socket.on('room_update', (data) => {
-                if (state.roomId && state.isInSeatsScreen) {
-                    updateSeatsUI(data);
-                }
-            });
-
-            // ---- GAME ----
-            socket.on('game_countdown', (data) => {
-                state.gameStarting = true;
-                showToast(`⏳ تبدأ المعركة خلال ${data.seconds} ثواني...`, 'warning');
-                $('seatsStatus').textContent = `⏳ تبدأ خلال ${data.seconds}s`;
-                $('seatsStatus').className = 'status-badge starting';
-                $('seatsJoinBtn').disabled = true;
-                $('seatsLeaveBtn').disabled = true;
-                $('seatsJoinBtn').style.opacity = '0.5';
-                $('seatsLeaveBtn').style.opacity = '0.5';
-            });
-
-            socket.on('game_start', (data) => {
-                state.gameStarting = false;
-                state.roomJoined = false;
-                state.isInSeatsScreen = false;
-                state.isInGame = true;
-                loadGameAndStart(data);
-            });
-
-            socket.on('balance_update', (data) => {
-                state.balance = data.balance || 0;
-                updateHeaderUI();
-                if (data.reward) showToast(`💰 +${data.reward}$ ${data.reason || ''}`, 'success');
-                if (data.elo) {
-                    state.elo = data.elo;
-                    const rank = getRank(data.elo);
-                    $('sElo').textContent = data.elo;
-                    $('sRank').textContent = rank.name;
-                    $('sRank').style.color = rank.color;
-                }
-            });
-
-            // ---- STATS ----
-            socket.on('stats_update', (data) => {
-                state.balance = data.balance || 0;
-                state.elo = data.elo || 1000;
-                state.kills = data.kills || 0;
-                state.wins = data.wins || 0;
-                state.gamesPlayed = data.gamesPlayed || 0;
-                updateHeaderUI();
-                updateStatsUI(data);
-                updateProfileUI(data);
-            });
-
-            socket.on('leaderboard_update', (data) => {
-                state.leaderboard = data.players || [];
-                renderLeaderboard(state.leaderboard);
-            });
-
-            // ---- ERRORS ----
-            socket.on('error', (data) => showToast('❌ ' + data.message, 'error'));
-            socket.on('kicked', (data) => {
-                showToast('🚫 ' + (data.reason || 'تم طردك'), 'error');
-                exitGame();
-            });
-            socket.on('banned', (data) => {
-                showToast('⛔ ' + (data.reason || 'تم حظرك'), 'error');
-                exitGame();
-            });
-        }
-
-        // ============================================
-        // 🎮 LOAD GAME
-        // ============================================
-        function loadGameAndStart(data) {
-            showToast('🎮 جاري تحميل المعركة...', 'info');
-
-            // إخفاء الواجهات
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.querySelector('.bottom-nav').style.display = 'none';
-            document.querySelector('.top-header').style.display = 'none';
-
-            const script = document.createElement('script');
-            script.src = 'game.js';
-            script.onload = function() {
-                if (typeof window.startBattleGame === 'function') {
-                    window.startBattleGame(data, state, socket);
-                } else {
-                    console.error('❌ Game module not loaded correctly');
-                    showToast('❌ فشل تحميل اللعبة', 'error');
-                    exitGame();
-                }
-            };
-            script.onerror = function() {
-                console.error('❌ Failed to load game.js');
-                showToast('❌ فشل تحميل اللعبة، يرجى تحديث الصفحة', 'error');
-                exitGame();
-            };
-            document.head.appendChild(script);
-        }
-
-        function exitGame() {
-            state.isInGame = false;
-            if (typeof window.exitBattleGame === 'function') {
-                window.exitBattleGame();
-            }
-            state.roomId = null;
-            state.roomJoined = false;
-            state.isInSeatsScreen = false;
-            state.gameStarting = false;
-            
-            document.querySelector('.bottom-nav').style.display = 'flex';
-            document.querySelector('.top-header').style.display = 'flex';
-            
-            showScreen('mainScreen');
-            if (socket) {
-                socket.emit('leave_room');
-                socket.emit('list_rooms');
-            }
-        }
-
-        // ============================================
-        // 🖥️ UI UPDATES
-        // ============================================
-        function updateStatsUI(data) {
-            $('sWins').textContent = data.wins || 0;
-            $('sKills').textContent = data.kills || 0;
-            $('sElo').textContent = data.elo || 1000;
-            const rank = getRank(data.elo || 1000);
-            $('sRank').textContent = rank.name;
-            $('sRank').style.color = rank.color;
-        }
-
-        function updateProfileUI(data) {
-            $('profileName').textContent = data.username || state.username || 'اللاعب';
-            $('profileId').textContent = data.userId || state.userId || '---';
-            $('pWins').textContent = data.wins || 0;
-            $('pKills').textContent = data.kills || 0;
-            $('pGames').textContent = data.gamesPlayed || 0;
-            $('pBalance').textContent = data.balance || 0;
-            const rank = getRank(data.elo || 1000);
-            $('profileRank').textContent = rank.name;
-            $('profileRank').style.color = rank.color;
-            $('profileRank').style.background = `rgba(${hexToRgb(rank.color)}, 0.12)`;
-        }
-
-        function hexToRgb(hex) {
-            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-            return result ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : '212, 175, 55';
-        }
-
-        function renderRooms(rooms) {
-            const grid = $('roomsGrid');
-            if (!rooms || rooms.length === 0) {
-                grid.innerHTML = `
-                    <div class="empty-rooms">
-                        <i class="fas fa-door-open"></i>
-                        <p>لا توجد غرف متاحة حالياً</p>
-                    </div>
-                `;
+            if (!username || !password) {
+                spinner.style.display = 'none';
+                statusMsg.className = 'status-message error';
+                statusMsg.style.display = 'block';
+                statusMsg.textContent = '⚠️ الرجاء إدخال اسم المستخدم وكلمة المرور';
                 return;
             }
 
-            const waitingRooms = rooms.filter(r => r.status === 'waiting');
-            
-            if (waitingRooms.length === 0) {
-                grid.innerHTML = `
-                    <div class="empty-rooms">
-                        <i class="fas fa-clock"></i>
-                        <p>جميع الغرف ممتلئة، انتظر قليلاً</p>
-                    </div>
-                `;
-                return;
-            }
-
-            grid.innerHTML = waitingRooms.map(room => {
-                const pct = (room.players / room.maxSeats) * 100;
-                const full = room.players >= room.maxSeats;
-                const typeIcons = {
-                    beginner: '🟢',
-                    advanced: '🟡',
-                    pro: '🔴'
-                };
-                const typeNames = {
-                    beginner: 'مبتدئين',
-                    advanced: 'متقدمين',
-                    pro: 'محترفين'
-                };
-                return `
-                    <div class="room-card ${full ? 'full' : ''}" onclick="${full ? '' : `selectRoom('${room.id}')`}">
-                        <div class="badge">${typeIcons[room.type] || '🏠'} ${typeNames[room.type] || room.type}</div>
-                        <div class="type-icon">${typeIcons[room.type] || '🏠'}</div>
-                        <div class="name">${room.name}</div>
-                        <div class="details">
-                            <span class="players"><i class="fas fa-users"></i> <span class="count">${room.players}</span>/${room.maxSeats}</span>
-                            <span class="price"><i class="fas fa-coins"></i> ${room.seatPrice}$</span>
-                            <span class="status-tag ${full ? 'full' : 'waiting'}">${full ? '🟢 مكتملة' : '🔓 متاحة'}</span>
-                        </div>
-                        <div class="progress"><div class="bar" style="width:${pct}%"></div></div>
-                        ${room.minElo !== undefined ? `<div class="elo-range"><i class="fas fa-star"></i> ${room.minElo}-${room.maxElo}</div>` : ''}
-                        ${room.gameRound ? `<div style="font-size:10px;color:var(--text-muted);margin-top:4px;">الجولة #${room.gameRound}</div>` : ''}
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function selectRoom(roomId) {
-            if (!socket || !state.userId) {
-                showToast('⚠️ يرجى تسجيل الدخول', 'warning');
-                return;
-            }
-            if (state.roomId) {
-                showToast('⚠️ أنت بالفعل في غرفة', 'warning');
-                return;
-            }
-            socket.emit('join_room', { roomId });
-        }
-
-        function showRoomSeats(data) {
-            state.isInSeatsScreen = true;
-            showScreen('seatsScreen');
-            $('seatsJoinBtn').disabled = false;
-            $('seatsLeaveBtn').disabled = false;
-            $('seatsJoinBtn').style.opacity = '1';
-            $('seatsLeaveBtn').style.opacity = '1';
-
-            const room = data;
-            $('seatsRoomName').innerHTML = `<i class="fas fa-door-open"></i> ${room.roomName || 'غرفة'}`;
-            $('seatsRoomInfo').textContent =
-                `سعر المقعد: ${room.seatPrice || 1}$ | ${room.playersCount || 0}/${room.maxSeats || 8} لاعبين`;
-            $('seatsStatus').textContent = state.gameStarting ? '⏳ تبدأ الجولة...' : '⏳ في الانتظار';
-            $('seatsStatus').className = `status-badge ${state.gameStarting ? 'starting' : 'waiting'}`;
-
-            renderSeats(room);
-        }
-
-        function renderSeats(roomData) {
-            const grid = $('seatsGrid');
-            const maxSeats = roomData.maxSeats || 8;
-            const players = roomData.players || [];
-            const myUserId = state.userId;
-
-            grid.innerHTML = '';
-
-            for (let i = 0; i < maxSeats; i++) {
-                const player = players[i] || null;
-                const isOccupied = !!player;
-                const isYourSeat = isOccupied && player.userId === myUserId;
-
-                const seatDiv = document.createElement('div');
-                seatDiv.className = `seat-item ${isYourSeat ? 'your' : (isOccupied ? 'occupied' : 'empty')}`;
-
-                if (!isOccupied && !state.gameStarting && !state.roomJoined) {
-                    seatDiv.style.cursor = 'pointer';
-                    seatDiv.onclick = () => {
-                        if (state.gameStarting) {
-                            showToast('⏳ الجولة تبدأ، لا يمكن حجز مقعد', 'warning');
-                            return;
-                        }
-                        socket.emit('join_room', { roomId: state.roomId });
-                    };
-                }
-
-                seatDiv.innerHTML = `
-                    <div class="num">#${i + 1}</div>
-                    ${isOccupied ? `<div class="name">${player.username || 'لاعب'}</div>` : '<div class="name" style="color:var(--text-muted);">فارغ</div>'}
-                    <div class="status-tag ${isYourSeat ? 'your' : (isOccupied ? 'occupied' : 'empty')}">
-                        ${isYourSeat ? '⭐ أنت' : (isOccupied ? 'محجوز' : 'متاح')}
-                    </div>
-                `;
-
-                grid.appendChild(seatDiv);
-            }
-
-            const hasSeat = players.some(p => p.userId === myUserId);
-            $('seatsJoinBtn').style.display = hasSeat || state.gameStarting ? 'none' : 'block';
-            $('seatsLeaveBtn').style.display = hasSeat && !state.gameStarting ? 'block' : 'none';
-        }
-
-        function updateSeatsUI(data) {
-            const room = state.currentRoomData;
-            if (room) {
-                room.players = data.players || [];
-                room.playersCount = data.count || 0;
-                $('seatsRoomInfo').textContent =
-                    `سعر المقعد: ${room.seatPrice || 1}$ | ${room.playersCount || 0}/${room.maxSeats || 8} لاعبين`;
-                renderSeats(room);
-            }
-        }
-
-        function renderLeaderboard(players) {
-            const container = $('leaderboardList');
-            if (!players || players.length === 0) {
-                container.innerHTML = '<div class="lb-empty">لا يوجد لاعبين بعد</div>';
-                return;
-            }
-
-            container.innerHTML = players.slice(0, 20).map((p, i) => {
-                const cls = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : '';
-                const rank = getRank(p.elo || 1000);
-                return `
-                    <div class="lb-item ${cls}">
-                        <span class="rank">#${i + 1}</span>
-                        <span class="name">${p.username || 'لاعب'}</span>
-                        <span class="rank-badge">${rank.icon} ${rank.name}</span>
-                        <span class="elo">⭐ ${p.elo || 1000}</span>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        // ============================================
-        // 🖱️ UI EVENTS
-        // ============================================
-        function setupUIListeners() {
-            // ---- AUTH ----
-            $('authLoginBtn').addEventListener('click', () => {
-                const userId = $('authUserId').value.trim();
-                if (!userId) {
-                    showToast('⚠️ يرجى إدخال المعرف', 'warning');
-                    return;
-                }
-                const url = new URL(window.location);
-                url.searchParams.set('user_id', userId);
-                window.history.replaceState({}, '', url);
-                showLoading(true);
-                authenticate(userId);
-            });
-
-            $('authUserId').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') $('authLoginBtn').click();
-            });
-
-            // ---- NAV ----
-            document.querySelectorAll('.bottom-nav .nav-item').forEach(item => {
-                item.addEventListener('click', () => {
-                    const screenId = item.dataset.screen;
-                    if (screenId === 'adminPanel') {
-                        if (!state.isAdmin) {
-                            showToast('⚠️ غير مصرح لك', 'error');
-                            return;
-                        }
-                        window.location.href = 'admin.html';
-                        return;
-                    }
-                    if (screenId === 'lobbyScreen') {
-                        if (!state.userId) {
-                            showToast('⚠️ يرجى تسجيل الدخول', 'warning');
-                            return;
-                        }
-                        if (state.isInGame) {
-                            showToast('⚠️ أنت في مباراة حالياً', 'warning');
-                            return;
-                        }
-                        socket.emit('join_lobby');
-                        socket.emit('list_rooms');
-                    }
-                    if (screenId === 'statsScreen') {
-                        if (state.userId) {
-                            socket.emit('get_stats');
-                            socket.emit('get_leaderboard');
-                        }
-                    }
-                    showScreen(screenId);
-                });
-            });
-
-            // ---- MAIN ----
-            $('playBtn').addEventListener('click', () => {
-                if (!state.userId) {
-                    showToast('⚠️ يرجى تسجيل الدخول', 'warning');
-                    showScreen('authScreen');
-                    return;
-                }
-                if (state.isInGame) {
-                    showToast('⚠️ أنت في مباراة حالياً', 'warning');
-                    return;
-                }
-                if (!socket || !socket.connected) {
-                    showToast('⚠️ لا يوجد اتصال بالخادم', 'error');
-                    connectSocket().then(() => {
-                        authenticate(state.userId);
-                    }).catch(() => {
-                        showToast('❌ فشل الاتصال بالخادم', 'error');
-                    });
-                    return;
-                }
-                showScreen('lobbyScreen');
-                socket.emit('join_lobby');
-                socket.emit('list_rooms');
-            });
-
-            // ---- SEATS ----
-            $('seatsJoinBtn').addEventListener('click', () => {
-                if (state.gameStarting) {
-                    showToast('⏳ الجولة تبدأ، لا يمكن حجز مقعد', 'warning');
-                    return;
-                }
-                if (socket && state.roomId) {
-                    socket.emit('join_room', { roomId: state.roomId });
-                }
-            });
-
-            $('seatsLeaveBtn').addEventListener('click', () => {
-                if (state.gameStarting) {
-                    showToast('⏳ الجولة تبدأ، لا يمكن ترك المقعد', 'warning');
-                    return;
-                }
-                if (socket && state.roomId) {
-                    socket.emit('leave_room');
-                }
-            });
-
-            $('seatsBackBtn').addEventListener('click', () => {
-                if (state.roomId && !state.gameStarting) {
-                    socket.emit('leave_room');
-                }
-                state.isInSeatsScreen = false;
-                showScreen('lobbyScreen');
-                socket.emit('list_rooms');
-            });
-        }
-
-        // ============================================
-        // 🚀 INIT
-        // ============================================
-        async function initApp() {
             try {
-                showLoading(true);
+                // محاكاة مصادقة (في الإنتاج، سيتم الاتصال بالخادم)
+                const fakeId = Math.floor(Math.random() * 9000000) + 1000000;
+                localStorage.setItem('telegramId', fakeId);
+                localStorage.setItem('telegramUsername', username);
 
-                const params = new URLSearchParams(window.location.search);
-                const userId = params.get('user_id');
-                if (userId) $('authUserId').value = userId;
+                spinner.style.display = 'none';
+                statusMsg.className = 'status-message success';
+                statusMsg.style.display = 'block';
+                statusMsg.textContent = '✅ تم تسجيل الدخول بنجاح! جاري التوجيه...';
 
-                const savedId = localStorage.getItem('btUserId');
-                if (savedId && !userId) $('authUserId').value = savedId;
+                setTimeout(() => {
+                    window.location.href = '/game?user_id=' + fakeId;
+                }, 1000);
 
-                await connectSocket();
-                setupSocketEvents();
-                setupUIListeners();
-
-                if (userId) {
-                    showLoading(true);
-                    authenticate(userId);
-                } else if (savedId) {
-                    showLoading(true);
-                    authenticate(savedId);
-                } else {
-                    showLoading(false);
-                    showScreen('authScreen');
-                }
-
-                window.exitGame = exitGame;
-
-            } catch (e) {
-                console.error('❌ Init error:', e);
-                showLoading(false);
-                showToast('❌ فشل الاتصال بالخادم', 'error');
-                showScreen('authScreen');
+            } catch (error) {
+                spinner.style.display = 'none';
+                statusMsg.className = 'status-message error';
+                statusMsg.style.display = 'block';
+                statusMsg.textContent = '❌ ' + error.message;
             }
+        });
+
+        // ============================================================
+        // 🔄 التحقق من وجود جلسة سابقة
+        // ============================================================
+        if (localStorage.getItem('telegramId')) {
+            window.location.href = '/game?user_id=' + localStorage.getItem('telegramId');
         }
-
-        // ============================================
-        // 🏁 START
-        // ============================================
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('🚀 Starting Battle Tanks Royale v12.0.0');
-            initApp();
-        });
-
-        // ---- ORIENTATION ----
-        window.addEventListener('orientationchange', () => {
-            const warn = $('landscapeWarning');
-            if (state.isInGame) {
-                warn.style.display = (window.innerHeight > window.innerWidth) ? 'flex' : 'none';
-            }
-        });
-
-        // ---- NETWORK ----
-        window.addEventListener('online', () => {
-            if (!socket || !socket.connected) {
-                showToast('🔄 تم استعادة الإنترنت، جاري إعادة الاتصال...', 'info');
-                connectSocket().then(() => {
-                    if (state.userId) authenticate(state.userId);
-                }).catch(() => showToast('❌ فشل إعادة الاتصال', 'error'));
-            }
-        });
-
-        window.addEventListener('offline', () => {
-            showToast('⚠️ انقطع الاتصال بالإنترنت', 'warning');
-        });
-
-        console.log('🎮 Battle Tanks Royale v12.0.0 loaded');
     </script>
 
 </body>
