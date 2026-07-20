@@ -11,6 +11,12 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+    <!-- Socket.IO -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
     <style>
         /* ============================================
            🔥 CSS Variables & Reset
@@ -1855,6 +1861,16 @@
                 <div class="admin-stats-box" id="adminStats" style="margin-top:10px;">جاري التحميل...</div>
             </div>
 
+            <!-- Database Management -->
+            <div class="admin-section">
+                <h3><i class="fas fa-database"></i> إدارة قاعدة البيانات</h3>
+                <div class="admin-grid">
+                    <button class="admin-btn" id="adminDbHealth">🔍 فحص قاعدة البيانات</button>
+                    <button class="admin-btn danger" id="adminForceReconnect">🔄 إعادة اتصال قسري</button>
+                </div>
+                <div class="admin-stats-box" id="adminDbStatus" style="margin-top:10px;">جاري التحميل...</div>
+            </div>
+
             <!-- Danger Zone -->
             <div class="admin-section" style="border-color: rgba(231, 76, 60, 0.3);">
                 <h3 style="color: #e74c3c;"><i class="fas fa-exclamation-triangle"></i> منطقة الخطر</h3>
@@ -1873,10 +1889,12 @@
         // ============================================
         const CONFIG = {
             SERVER_URL: 'https://game1-duy1.onrender.com',
-            // SERVER_URL: 'http://localhost:3000',
             GAME_WIDTH: window.innerWidth,
             GAME_HEIGHT: window.innerHeight,
         };
+
+        console.log('🎮 Battle Tanks Royale - UI v2.0.0');
+        console.log('📡 Connecting to server:', CONFIG.SERVER_URL);
 
         // ============================================
         // 📦 State Management
@@ -1899,43 +1917,67 @@
             socket: null,
             visualSettings: {},
             config: {},
-            reconnectToken: null
+            reconnectToken: null,
+            connectionAttempts: 0,
+            maxConnectionAttempts: 10
         };
 
         // ============================================
-        // 🔌 Socket.IO Connection
+        // 🔌 Socket.IO Connection with Auto-Reconnect
         // ============================================
         let socket = null;
+        let reconnectTimer = null;
 
         function connectSocket() {
             return new Promise((resolve, reject) => {
                 try {
+                    console.log('🔌 Connecting to server...');
+                    
                     socket = io(CONFIG.SERVER_URL, {
                         transports: ['websocket', 'polling'],
                         reconnection: true,
-                        reconnectionAttempts: 10,
+                        reconnectionAttempts: Infinity,
                         reconnectionDelay: 1000,
-                        reconnectionDelayMax: 5000
+                        reconnectionDelayMax: 10000,
+                        timeout: 20000,
+                        pingTimeout: 60000,
+                        pingInterval: 25000
                     });
 
                     socket.on('connect', () => {
                         console.log('✅ Connected to server');
                         state.socket = socket;
+                        state.connectionAttempts = 0;
+                        showNotification('✅ تم الاتصال بالخادم', 'success');
                         resolve(socket);
                     });
 
                     socket.on('connect_error', (error) => {
-                        console.error('❌ Connection error:', error);
-                        reject(error);
+                        console.error('❌ Connection error:', error.message);
+                        state.connectionAttempts++;
+                        
+                        if (state.connectionAttempts >= 3) {
+                            showNotification(`⚠️ فشل الاتصال بالخادم (محاولة ${state.connectionAttempts})`, 'warning');
+                        }
+                        
+                        if (state.connectionAttempts >= state.maxConnectionAttempts) {
+                            showNotification('❌ فشل الاتصال بالخادم بعد عدة محاولات. يرجى تحديث الصفحة.', 'error');
+                            reject(error);
+                        }
                     });
 
-                    socket.on('disconnect', () => {
-                        console.log('🔌 Disconnected from server');
-                        showNotification('⚠️ انقطع الاتصال بالخادم، جاري إعادة المحاولة...', 'warning');
+                    socket.on('disconnect', (reason) => {
+                        console.log('🔌 Disconnected from server:', reason);
+                        if (reason === 'io server disconnect') {
+                            // الخادم قطع الاتصال عمداً
+                            showNotification('⚠️ تم قطع الاتصال بالخادم', 'warning');
+                        } else {
+                            showNotification('⚠️ انقطع الاتصال بالخادم، جاري إعادة المحاولة...', 'warning');
+                        }
                     });
 
-                    socket.on('reconnect', () => {
-                        console.log('🔄 Reconnected to server');
+                    socket.on('reconnect', (attempt) => {
+                        console.log(`🔄 Reconnected to server (attempt ${attempt})`);
                         showNotification('✅ تم إعادة الاتصال بالخادم', 'success');
                         // إعادة المصادقة
                         if (state.user) {
@@ -1943,7 +1985,21 @@
                         }
                     });
 
+                    socket.on('reconnect_attempt', (attempt) => {
+                        console.log(`🔄 Reconnection attempt ${attempt}...`);
+                    });
+
+                    socket.on('reconnect_error', (error) => {
+                        console.error('❌ Reconnection error:', error);
+                    });
+
+                    socket.on('reconnect_failed', () => {
+                        console.error('❌ Reconnection failed');
+                        showNotification('❌ فشل إعادة الاتصال بالخادم', 'error');
+                    });
+
                 } catch (error) {
+                    console.error('❌ Socket creation error:', error);
                     reject(error);
                 }
             });
@@ -1953,25 +2009,48 @@
         // 🔐 Authentication
         // ============================================
         function authenticate() {
-            if (!socket) return;
+            if (!socket) {
+                console.error('❌ Socket not available for authentication');
+                return;
+            }
 
             // الحصول على Telegram ID من الرابط
             const urlParams = new URLSearchParams(window.location.search);
-            const telegramId = urlParams.get('user_id') || urlParams.get('telegram_id');
-            const username = urlParams.get('username') || 'لاعب';
-            const firstName = urlParams.get('first_name') || '';
-            const lastName = urlParams.get('last_name') || '';
-            const photoUrl = urlParams.get('photo_url') || '';
+            let telegramId = urlParams.get('user_id') || urlParams.get('telegram_id');
+            let username = urlParams.get('username') || 'لاعب';
+            let firstName = urlParams.get('first_name') || '';
+            let lastName = urlParams.get('last_name') || '';
+            let photoUrl = urlParams.get('photo_url') || '';
+
+            // إذا كان المستخدم مسجل مسبقاً في التخزين المحلي
+            const savedUser = localStorage.getItem('battleTanksUser');
+            if (savedUser && !telegramId) {
+                try {
+                    const userData = JSON.parse(savedUser);
+                    if (userData.telegramId) {
+                        telegramId = userData.telegramId;
+                        username = userData.username || username;
+                        firstName = userData.firstName || firstName;
+                        lastName = userData.lastName || lastName;
+                        photoUrl = userData.photoUrl || photoUrl;
+                        console.log('🔄 Using saved user data:', telegramId);
+                    }
+                } catch (e) {
+                    console.error('Error parsing saved user:', e);
+                }
+            }
 
             if (telegramId) {
-                // تسجيل الدخول عبر تيليغرام
+                // تسجيل الدخول عبر تيليغرام أو ضيف
+                const deviceId = localStorage.getItem('deviceId') || generateDeviceId();
+                
                 socket.emit('auth', {
                     telegramId: telegramId,
                     username: username,
                     firstName: firstName,
                     lastName: lastName,
                     photoUrl: photoUrl,
-                    deviceId: localStorage.getItem('deviceId') || generateDeviceId()
+                    deviceId: deviceId
                 });
             } else {
                 // تسجيل الدخول كضيف
@@ -2017,7 +2096,12 @@
                 info: '#3498db'
             };
 
+            // إزالة الإشعارات القديمة
+            const oldNotifications = document.querySelectorAll('.custom-notification');
+            oldNotifications.forEach(n => n.remove());
+
             const notification = document.createElement('div');
+            notification.className = 'custom-notification';
             notification.style.cssText = `
                 position: fixed;
                 top: 20px;
@@ -2036,6 +2120,7 @@
                 animation: slideDown 0.3s ease;
                 max-width: 90%;
                 text-align: center;
+                min-width: 200px;
             `;
             notification.textContent = message;
             document.body.appendChild(notification);
@@ -2043,7 +2128,7 @@
             setTimeout(() => {
                 notification.style.animation = 'slideUp 0.3s ease';
                 setTimeout(() => notification.remove(), 300);
-            }, 3000);
+            }, 4000);
         }
 
         // إضافة أنماط للإشعارات
@@ -2078,10 +2163,11 @@
             grid.innerHTML = rooms.map(room => {
                 const percent = (room.players / room.maxSeats) * 100;
                 const isFull = room.players >= room.maxSeats;
-                const statusClass = isFull ? 'full' : 'waiting';
+                const statusClass = room.status === 'active' ? 'active' : (isFull ? 'full' : 'waiting');
                 
                 return `
-                    <div class="room-card ${isFull ? 'full' : ''}" onclick="${isFull ? '' : `joinRoom('${room.id}')`}">
+                    <div class="room-card ${isFull || room.status === 'active' ? 'full' : ''}" 
+                         onclick="${isFull || room.status === 'active' ? '' : `joinRoom('${room.id}')`}">
                         <div class="room-badge">${room.type === 'beginner' ? '🟢 مبتدئ' : room.type === 'advanced' ? '🟡 متقدم' : '🔴 محترف'}</div>
                         <div class="room-type">${room.type === 'beginner' ? '🟢' : room.type === 'advanced' ? '🟡' : '🔴'} غرفة</div>
                         <div class="room-name">🏠 ${room.name}</div>
@@ -2094,7 +2180,7 @@
                                 <i class="fas fa-coins"></i> ${room.seatPrice}$
                             </div>
                             <div class="room-status ${statusClass}">
-                                ${isFull ? '🟢 مكتملة' : '🔓 متاحة'}
+                                ${room.status === 'active' ? '⚔️ جارية' : (isFull ? '🟢 مكتملة' : '🔓 متاحة')}
                             </div>
                         </div>
                         <div class="room-progress">
@@ -2115,6 +2201,12 @@
                 return;
             }
 
+            if (state.roomId) {
+                showNotification('⚠️ أنت بالفعل في غرفة', 'warning');
+                return;
+            }
+
+            console.log('🎮 Joining room:', roomId);
             socket.emit('join_room', { roomId });
         }
 
@@ -2122,13 +2214,19 @@
         // 🔧 Admin Functions
         // ============================================
         function loadAdminPanel() {
-            if (!state.isAdmin) return;
+            if (!state.isAdmin) {
+                showNotification('⚠️ غير مصرح لك', 'error');
+                return;
+            }
 
+            showNotification('🔄 جاري تحميل لوحة التحكم...', 'info');
+            
             // طلب الإعدادات
             socket.emit('admin_command', { command: 'get_config' });
             socket.emit('admin_command', { command: 'get_visual_settings' });
             socket.emit('admin_command', { command: 'get_monitoring' });
             socket.emit('admin_command', { command: 'get_stats' });
+            socket.emit('admin_command', { command: 'get_database_health' });
 
             // إعدادات الغرف
             const roomGrid = document.getElementById('roomSettingsGrid');
@@ -2193,6 +2291,7 @@
         let joystickActive = false;
         let joystickData = { x: 0, y: 0 };
         let gameScene = null;
+        let moveInterval = null;
 
         function setupGameControls() {
             const base = document.getElementById('joystickBase');
@@ -2202,6 +2301,19 @@
             const startJoystick = (e) => {
                 e.preventDefault();
                 joystickActive = true;
+                // بدء إرسال الحركة بشكل مستمر
+                if (moveInterval) clearInterval(moveInterval);
+                moveInterval = setInterval(() => {
+                    if (joystickActive && state.gameActive && !state.isEliminated && gameScene && gameScene.playerTank) {
+                        const pos = gameScene.playerTank.position;
+                        if (socket) {
+                            socket.emit('move', {
+                                position: { x: pos.x, y: 0, z: pos.z },
+                                rotation: gameScene.playerTank.rotation.y || 0
+                            });
+                        }
+                    }
+                }, 50);
             };
 
             const moveJoystick = (e) => {
@@ -2224,13 +2336,12 @@
                 handle.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
                 joystickData = { x: x / maxDist, y: y / maxDist };
 
-                // إرسال الحركة
-                if (state.gameActive && !state.isEliminated && gameScene && gameScene.playerTank) {
-                    const pos = gameScene.playerTank.position;
-                    socket.emit('move', {
-                        position: { x: pos.x, y: pos.y, z: pos.z },
-                        rotation: gameScene.playerTank.rotation.y
-                    });
+                // تحديث اتجاه الدبابة
+                if (gameScene && gameScene.playerTank && !state.isEliminated) {
+                    if (Math.abs(joystickData.x) > 0.1 || Math.abs(joystickData.y) > 0.1) {
+                        const angleRad = Math.atan2(joystickData.x, joystickData.y);
+                        gameScene.playerTank.rotation.y = angleRad;
+                    }
                 }
             };
 
@@ -2238,12 +2349,17 @@
                 joystickActive = false;
                 handle.style.transform = 'translate(-50%, -50%)';
                 joystickData = { x: 0, y: 0 };
+                if (moveInterval) {
+                    clearInterval(moveInterval);
+                    moveInterval = null;
+                }
             };
 
-            base.addEventListener('touchstart', startJoystick);
+            // إضافة مستمعي الأحداث
+            base.addEventListener('touchstart', startJoystick, { passive: false });
             base.addEventListener('mousedown', startJoystick);
 
-            document.addEventListener('touchmove', moveJoystick);
+            document.addEventListener('touchmove', moveJoystick, { passive: false });
             document.addEventListener('mousemove', moveJoystick);
 
             document.addEventListener('touchend', endJoystick);
@@ -2252,41 +2368,43 @@
             // زر الإطلاق
             const fireBtn = document.getElementById('fireBtn');
             let lastFire = 0;
-            const cooldown = 3000;
+            const cooldown = 2000;
 
             const fire = () => {
                 if (state.isEliminated || !state.gameActive) return;
                 const now = Date.now();
-                if (now - lastFire < cooldown) return;
+                if (now - lastFire < cooldown) {
+                    const remaining = Math.ceil((cooldown - (now - lastFire)) / 1000);
+                    showNotification(`⏳ يرجى الانتظار ${remaining} ثانية`, 'warning');
+                    return;
+                }
 
-                if (gameScene && gameScene.playerTank) {
+                if (gameScene && gameScene.playerTank && socket) {
                     lastFire = now;
                     const pos = gameScene.playerTank.position;
                     const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(gameScene.playerTank.quaternion);
 
                     socket.emit('shoot', {
-                        position: { x: pos.x, y: pos.y, z: pos.z },
-                        direction: { x: dir.x, y: dir.y, z: dir.z }
+                        position: { x: pos.x, y: pos.y || 0, z: pos.z },
+                        direction: { x: dir.x, y: dir.y || 0, z: dir.z }
                     });
 
                     // عرض الكول داون
                     const cooldownText = document.getElementById('cooldownText');
-                    cooldownText.textContent = '⏱️ 3s';
-                    let count = 3;
-                    const interval = setInterval(() => {
-                        count--;
-                        if (count <= 0) {
-                            clearInterval(interval);
-                            cooldownText.textContent = '✅';
-                        } else {
-                            cooldownText.textContent = `⏱️ ${count}s`;
-                        }
-                    }, 1000);
+                    cooldownText.textContent = '⏱️';
+                    cooldownText.style.opacity = '1';
+                    
+                    setTimeout(() => {
+                        cooldownText.textContent = '🔥';
+                        setTimeout(() => {
+                            cooldownText.style.opacity = '0';
+                        }, 500);
+                    }, cooldown - 500);
                 }
             };
 
             fireBtn.addEventListener('click', fire);
-            fireBtn.addEventListener('touchstart', (e) => { e.preventDefault(); fire(); });
+            fireBtn.addEventListener('touchstart', (e) => { e.preventDefault(); fire(); }, { passive: false });
         }
 
         // ============================================
@@ -2309,6 +2427,7 @@
                 this.targetPositions = new Map();
                 this.animationId = null;
                 this.cameraShake = 0;
+                this.tankMeshes = new Map();
             }
 
             init() {
@@ -2319,6 +2438,7 @@
 
                 this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 500);
                 this.camera.position.set(0, 20, 30);
+                this.camera.lookAt(0, 0, 0);
 
                 this.renderer = new THREE.WebGLRenderer({
                     canvas: canvas,
@@ -2327,16 +2447,26 @@
                 this.renderer.setSize(window.innerWidth, window.innerHeight);
                 this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
                 this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
                 // إضاءة
-                const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+                const ambient = new THREE.AmbientLight(0x446688, 0.6);
                 this.scene.add(ambient);
 
                 const sun = new THREE.DirectionalLight(0xffeedd, 1.4);
                 sun.position.set(50, 70, 40);
                 sun.castShadow = true;
                 sun.shadow.mapSize.set(1024, 1024);
+                sun.shadow.camera.near = 0.1;
+                sun.shadow.camera.far = 200;
+                sun.shadow.camera.left = -200;
+                sun.shadow.camera.right = 200;
+                sun.shadow.camera.top = 200;
+                sun.shadow.camera.bottom = -200;
                 this.scene.add(sun);
+
+                const hemi = new THREE.HemisphereLight(0x4488ff, 0x002244, 0.4);
+                this.scene.add(hemi);
 
                 this.createTerrain();
                 this.createObstacles();
@@ -2348,32 +2478,56 @@
             }
 
             createTerrain() {
+                // إنشاء أرضية مفصلة
                 const canvas = document.createElement('canvas');
                 canvas.width = 512;
                 canvas.height = 512;
                 const ctx = canvas.getContext('2d');
 
+                // لون أساسي
                 ctx.fillStyle = '#2c5e2a';
                 ctx.fillRect(0, 0, 512, 512);
 
-                for (let i = 0; i < 3500; i++) {
-                    ctx.fillStyle = `hsl(${100 + Math.random() * 20}, 70%, ${30 + Math.random() * 25}%)`;
-                    ctx.fillRect(
-                        Math.floor(Math.random() * 512),
-                        Math.floor(Math.random() * 512),
-                        2 + Math.random() * 3,
-                        2 + Math.random() * 3
-                    );
+                // نسيج عشبي
+                for (let i = 0; i < 5000; i++) {
+                    const x = Math.floor(Math.random() * 512);
+                    const y = Math.floor(Math.random() * 512);
+                    const shade = 30 + Math.random() * 30;
+                    ctx.fillStyle = `hsl(${100 + Math.random() * 30}, 70%, ${shade}%)`;
+                    ctx.fillRect(x, y, 2 + Math.random() * 4, 2 + Math.random() * 4);
+                }
+
+                // مسارات
+                ctx.strokeStyle = 'rgba(60, 40, 20, 0.15)';
+                ctx.lineWidth = 8;
+                for (let i = 0; i < 20; i++) {
+                    ctx.beginPath();
+                    let x = Math.random() * 512;
+                    let y = Math.random() * 512;
+                    ctx.moveTo(x, y);
+                    for (let j = 0; j < 10; j++) {
+                        x += (Math.random() - 0.5) * 60;
+                        y += (Math.random() - 0.5) * 60;
+                        ctx.lineTo(x, y);
+                    }
+                    ctx.stroke();
                 }
 
                 const texture = new THREE.CanvasTexture(canvas);
                 texture.wrapS = THREE.RepeatWrapping;
                 texture.wrapT = THREE.RepeatWrapping;
-                texture.repeat.set(30, 30);
+                texture.repeat.set(40, 40);
+                texture.anisotropy = 4;
 
                 const ground = new THREE.Mesh(
-                    new THREE.PlaneGeometry(600, 600, 80, 80),
-                    new THREE.MeshStandardMaterial({ map: texture, roughness: 0.9, metalness: 0.05 })
+                    new THREE.PlaneGeometry(600, 600, 100, 100),
+                    new THREE.MeshStandardMaterial({ 
+                        map: texture, 
+                        roughness: 0.85, 
+                        metalness: 0.05,
+                        bumpMap: texture,
+                        bumpScale: 0.1
+                    })
                 );
                 ground.rotation.x = -Math.PI / 2;
                 ground.receiveShadow = true;
@@ -2381,7 +2535,18 @@
             }
 
             createObstacles() {
-                const rockMat = new THREE.MeshStandardMaterial({ color: 0x6a6a5a, roughness: 0.75 });
+                const rockMat = new THREE.MeshStandardMaterial({ 
+                    color: 0x6a6a5a, 
+                    roughness: 0.75,
+                    metalness: 0.1
+                });
+                
+                const rockMat2 = new THREE.MeshStandardMaterial({ 
+                    color: 0x5a5a4a, 
+                    roughness: 0.8,
+                    metalness: 0.05
+                });
+
                 const positions = [
                     { x: -90, z: -70, scale: 3.5 }, { x: -70, z: 40, scale: 4.0 },
                     { x: -40, z: -95, scale: 3.2 }, { x: 20, z: -85, scale: 3.8 },
@@ -2397,12 +2562,15 @@
                     { x: -95, z: 85, scale: 4.0 }, { x: 95, z: 95, scale: 4.2 }
                 ];
 
-                positions.forEach(pos => {
+                positions.forEach((pos, index) => {
+                    const mat = index % 2 === 0 ? rockMat : rockMat2;
                     const rock = new THREE.Mesh(
-                        new THREE.BoxGeometry(pos.scale * 1.2, pos.scale * 0.9, pos.scale * 1.2),
-                        rockMat
+                        new THREE.DodecahedronGeometry(pos.scale * 0.8, 1),
+                        mat
                     );
-                    rock.position.set(pos.x, pos.scale * 0.5, pos.z);
+                    rock.position.set(pos.x, pos.scale * 0.6, pos.z);
+                    rock.scale.set(1, 0.8 + Math.random() * 0.4, 1);
+                    rock.rotation.y = Math.random() * Math.PI * 2;
                     rock.castShadow = true;
                     rock.receiveShadow = true;
                     this.scene.add(rock);
@@ -2412,23 +2580,45 @@
 
             createTank(color, x, z, playerId) {
                 const group = new THREE.Group();
-                const tankMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.8, metalness: 0.2 });
-                const trackMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
-                const barrelMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.7, metalness: 0.6 });
+                const tankMat = new THREE.MeshStandardMaterial({ 
+                    color: color, 
+                    roughness: 0.7, 
+                    metalness: 0.3 
+                });
+                const trackMat = new THREE.MeshStandardMaterial({ 
+                    color: 0x222222, 
+                    roughness: 0.9,
+                    metalness: 0.1
+                });
+                const barrelMat = new THREE.MeshStandardMaterial({ 
+                    color: 0x333333, 
+                    roughness: 0.6, 
+                    metalness: 0.6 
+                });
+                const detailMat = new THREE.MeshStandardMaterial({ 
+                    color: 0x444444, 
+                    roughness: 0.5, 
+                    metalness: 0.4 
+                });
 
                 // هيكل
-                const chassis = new THREE.Mesh(new THREE.BoxGeometry(6, 1.5, 4), tankMat);
+                const chassis = new THREE.Mesh(new THREE.BoxGeometry(6, 1.5, 4.5), tankMat);
                 chassis.position.y = 1;
                 chassis.castShadow = true;
                 group.add(chassis);
 
+                // تفاصيل الهيكل
+                const detail = new THREE.Mesh(new THREE.BoxGeometry(4, 0.3, 3.5), detailMat);
+                detail.position.set(0, 1.8, 0);
+                group.add(detail);
+
                 // برج
                 const turretGroup = new THREE.Group();
-                turretGroup.position.y = 2.25;
+                turretGroup.position.y = 2.4;
                 turretGroup.position.z = -0.5;
                 group.add(turretGroup);
 
-                const turret = new THREE.Mesh(new THREE.BoxGeometry(3.5, 1.2, 2.8), tankMat);
+                const turret = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.4, 1.2, 16), tankMat);
                 turret.castShadow = true;
                 turretGroup.add(turret);
 
@@ -2437,39 +2627,76 @@
                 barrelGroup.position.set(0, 0, 1.8);
                 turretGroup.add(barrelGroup);
 
-                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.2, 4.5, 32), barrelMat);
+                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.25, 4.5, 32), barrelMat);
                 barrel.rotation.x = Math.PI / 2;
                 barrel.position.z = 2.25;
                 barrel.castShadow = true;
                 barrelGroup.add(barrel);
 
+                // فوهة المدفع
+                const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.15, 0.4, 16), barrelMat);
+                muzzle.rotation.x = Math.PI / 2;
+                muzzle.position.z = 4.7;
+                barrelGroup.add(muzzle);
+
                 // مسارات
                 const trackGeo = new THREE.BoxGeometry(6.2, 1.2, 0.8);
                 const leftTrack = new THREE.Mesh(trackGeo, trackMat);
-                leftTrack.position.set(0, 0.7, 2);
+                leftTrack.position.set(0, 0.7, 2.4);
                 leftTrack.castShadow = true;
                 group.add(leftTrack);
 
                 const rightTrack = new THREE.Mesh(trackGeo, trackMat);
-                rightTrack.position.set(0, 0.7, -2);
+                rightTrack.position.set(0, 0.7, -2.4);
                 rightTrack.castShadow = true;
                 group.add(rightTrack);
 
+                // عجلات
+                const wheelMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.9 });
+                for (let i = -2; i <= 2; i++) {
+                    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.3, 12), wheelMat);
+                    wheel.rotation.z = Math.PI / 2;
+                    wheel.position.set(0, 0.5, 2.8 + i * 0.8);
+                    group.add(wheel);
+                    
+                    const wheel2 = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.3, 12), wheelMat);
+                    wheel2.rotation.z = Math.PI / 2;
+                    wheel2.position.set(0, 0.5, -2.8 - i * 0.8);
+                    group.add(wheel2);
+                }
+
                 group.position.set(x, 0, z);
                 group.userData = { health: 100, playerId: playerId };
+                
+                // إضافة مؤشر للاعب
+                if (playerId === state.user?.userId) {
+                    const indicator = new THREE.Mesh(
+                        new THREE.CircleGeometry(0.8, 16),
+                        new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.4 })
+                    );
+                    indicator.rotation.x = -Math.PI / 2;
+                    indicator.position.y = -0.5;
+                    group.add(indicator);
+                }
+                
                 this.scene.add(group);
                 return group;
             }
 
-            createBullet(position, direction) {
+            createBullet(position, direction, ownerId) {
                 const bullet = new THREE.Mesh(
-                    new THREE.SphereGeometry(0.26, 24, 24),
-                    new THREE.MeshStandardMaterial({ color: 0xff8844, emissive: 0xff4422, emissiveIntensity: 0.6 })
+                    new THREE.SphereGeometry(0.3, 16, 16),
+                    new THREE.MeshStandardMaterial({ 
+                        color: 0xff8844, 
+                        emissive: 0xff4422, 
+                        emissiveIntensity: 0.6 
+                    })
                 );
                 bullet.position.copy(position);
                 bullet.userData = {
-                    velocity: direction.clone().multiplyScalar(2.6),
-                    life: 200
+                    velocity: direction.clone().multiplyScalar(2.8),
+                    life: 200,
+                    ownerId: ownerId
                 };
                 this.scene.add(bullet);
                 this.bullets.push(bullet);
@@ -2477,28 +2704,41 @@
             }
 
             createExplosion(position, size = 1.2) {
+                // فلاش
                 const flash = new THREE.Mesh(
                     new THREE.SphereGeometry(size * 0.6, 16, 16),
-                    new THREE.MeshStandardMaterial({ color: 0xffaa66, emissive: 0xff4422, emissiveIntensity: 1.2 })
+                    new THREE.MeshStandardMaterial({ 
+                        color: 0xffaa66, 
+                        emissive: 0xff4422, 
+                        emissiveIntensity: 1.2 
+                    })
                 );
                 flash.position.copy(position);
                 this.scene.add(flash);
                 setTimeout(() => this.scene.remove(flash), 200);
 
-                for (let i = 0; i < 45; i++) {
+                // جسيمات
+                for (let i = 0; i < 60; i++) {
                     const particle = new THREE.Mesh(
-                        new THREE.SphereGeometry(0.12, 6, 6),
-                        new THREE.MeshStandardMaterial({ color: 0xff8844, emissive: 0xff4422 })
+                        new THREE.SphereGeometry(0.1 + Math.random() * 0.15, 6, 6),
+                        new THREE.MeshStandardMaterial({ 
+                            color: new THREE.Color().setHSL(0.08 + Math.random() * 0.1, 0.9, 0.5 + Math.random() * 0.3),
+                            emissive: new THREE.Color().setHSL(0.08, 0.8, 0.3),
+                            emissiveIntensity: 0.5
+                        })
                     );
                     particle.position.copy(position);
+                    const angle1 = Math.random() * Math.PI * 2;
+                    const angle2 = Math.random() * Math.PI * 2;
+                    const speed = 0.5 + Math.random() * 1.5;
                     particle.userData = {
                         vel: new THREE.Vector3(
-                            (Math.random() - 0.5) * 1.2,
-                            Math.random() * 1.5 + 0.5,
-                            (Math.random() - 0.5) * 1.2
+                            Math.cos(angle1) * Math.sin(angle2) * speed,
+                            Math.sin(angle1) * speed * 0.8 + 0.5,
+                            Math.cos(angle2) * Math.sin(angle1) * speed
                         ),
-                        life: 1,
-                        gravity: 0.03
+                        life: 1 + Math.random() * 0.5,
+                        gravity: 0.02 + Math.random() * 0.02
                     };
                     this.scene.add(particle);
                     this.particles.push(particle);
@@ -2511,7 +2751,7 @@
                 // تحديث الجسيمات
                 for (let i = this.particles.length - 1; i >= 0; i--) {
                     const p = this.particles[i];
-                    p.userData.life -= 0.025;
+                    p.userData.life -= 0.02;
                     if (p.userData.life <= 0) {
                         this.scene.remove(p);
                         this.particles.splice(i, 1);
@@ -2521,7 +2761,8 @@
                         p.position.y += p.userData.vel.y;
                         if (p.userData.gravity) p.userData.vel.y -= p.userData.gravity;
                         p.material.emissiveIntensity = p.userData.life * 1.5;
-                        p.scale.setScalar(p.userData.life * 1.5);
+                        const scale = p.userData.life * 0.8 + 0.2;
+                        p.scale.setScalar(scale);
                     }
                 }
 
@@ -2530,7 +2771,7 @@
                     const b = this.bullets[i];
                     b.position.add(b.userData.velocity);
                     b.userData.life--;
-                    if (b.userData.life <= 0 || Math.abs(b.position.x) > 430 || Math.abs(b.position.z) > 430) {
+                    if (b.userData.life <= 0 || Math.abs(b.position.x) > 450 || Math.abs(b.position.z) > 450) {
                         this.scene.remove(b);
                         this.bullets.splice(i, 1);
                     }
@@ -2544,17 +2785,18 @@
                         camTarget.x += (Math.random() - 0.5) * this.cameraShake * 0.5;
                         camTarget.y += (Math.random() - 0.5) * this.cameraShake * 0.3;
                         this.cameraShake *= 0.92;
+                        if (this.cameraShake < 0.01) this.cameraShake = 0;
                     }
-                    this.camera.position.lerp(camTarget, 0.12);
+                    this.camera.position.lerp(camTarget, 0.08);
                     this.camera.lookAt(this.playerTank.position.clone().add(new THREE.Vector3(0, 1.2, 0)));
                 }
 
-                // تحديث حركة اللاعب
-                if (this.playerTank && !this.isEliminated && joystickActive) {
-                    const speed = -joystickData.y * 0.22;
-                    const rot = -joystickData.x * 0.045;
-                    this.playerTank.rotation.y += rot;
-                    this.playerTank.translateZ(speed);
+                // تحديث الدبابات الأخرى (حركة سلسة)
+                for (const [id, tank] of this.tanks) {
+                    if (id !== this.playerId && this.targetPositions.has(id)) {
+                        const target = this.targetPositions.get(id);
+                        tank.position.lerp(target, 0.15);
+                    }
                 }
             }
 
@@ -2587,6 +2829,11 @@
                 this.bullets = [];
                 this.particles = [];
                 this.obstacles = [];
+                this.targetPositions.clear();
+                if (moveInterval) {
+                    clearInterval(moveInterval);
+                    moveInterval = null;
+                }
             }
         }
 
@@ -2610,6 +2857,17 @@
                 state.isAdmin = data.isAdmin || false;
                 state.reconnectToken = data.reconnectToken;
 
+                // حفظ بيانات المستخدم
+                try {
+                    localStorage.setItem('battleTanksUser', JSON.stringify({
+                        telegramId: data.telegramId,
+                        username: data.username,
+                        firstName: data.firstName,
+                        lastName: data.lastName,
+                        photoUrl: data.photoUrl
+                    }));
+                } catch (e) {}
+
                 // تحديث الواجهة
                 updateUserUI(data);
                 document.getElementById('loadingScreen').classList.add('hidden');
@@ -2625,6 +2883,8 @@
             socket.on('auth_error', (data) => {
                 document.getElementById('loadingScreen').classList.add('hidden');
                 showNotification('❌ ' + data.message, 'error');
+                // إظهار شاشة تسجيل الدخول
+                showScreen('authScreen');
             });
 
             // ============================================
@@ -2636,7 +2896,6 @@
                 state.visualSettings = data.visualSettings || {};
                 state.config = data.config || {};
                 updateUserUI({ balance: data.balance, elo: data.elo });
-                document.getElementById('lobbyPlayers').textContent = data.onlinePlayers || 0;
             });
 
             socket.on('rooms_list', (data) => {
@@ -2653,16 +2912,19 @@
                 state.roomId = data.roomId;
                 state.currentRoom = data;
                 showNotification(data.message || '✅ تم الانضمام للغرفة', 'success');
-                // تحديث قائمة الغرف
                 socket.emit('list_rooms');
             });
 
             socket.on('room_update', (data) => {
                 // تحديث معلومات الغرفة
                 if (state.roomId) {
-                    document.getElementById('lobbyStatus').textContent = 
-                        `👥 ${data.count}/${data.maxSeats} لاعب - ينتظر ${data.needed} لاعبين`;
+                    // يمكن عرض تحديثات الغرفة هنا
                 }
+            });
+
+            socket.on('room_created', (data) => {
+                showNotification(`🏠 تم إنشاء غرفة جديدة: ${data.name}`, 'info');
+                socket.emit('list_rooms');
             });
 
             socket.on('player_joined', (data) => {
@@ -2698,6 +2960,12 @@
                             startGame(data);
                         }
                     }, 200);
+                    // مهلة 5 ثواني
+                    setTimeout(() => {
+                        clearInterval(checkOrientation);
+                        warning.style.display = 'none';
+                        startGame(data);
+                    }, 5000);
                 } else {
                     startGame(data);
                 }
@@ -2730,7 +2998,7 @@
 
                 // إنشاء الدبابة الخاصة
                 const myPos = data.position || { x: 0, z: 0 };
-                const myColor = 0x4a6a8b;
+                const myColor = 0x4a8b6a;
                 gameScene.playerTank = gameScene.createTank(myColor, myPos.x, myPos.z, state.playerId);
                 gameScene.tanks.set(state.playerId, gameScene.playerTank);
 
@@ -2738,7 +3006,8 @@
                 if (data.players) {
                     data.players.forEach(p => {
                         if (p.userId !== state.playerId) {
-                            const color = Math.random() > 0.5 ? 0x8b5a2b : 0x4a6a8b;
+                            const colors = [0x8b5a2b, 0x6a4a8b, 0x8b2b3a, 0x2b6a8b, 0x8b6a2b];
+                            const color = colors[Math.floor(Math.random() * colors.length)];
                             const pos = p.position || { x: 0, z: 0 };
                             const tank = gameScene.createTank(color, pos.x, pos.z, p.userId);
                             gameScene.tanks.set(p.userId, tank);
@@ -2754,33 +3023,46 @@
 
             socket.on('player_moved', (data) => {
                 if (gameScene && gameScene.gameActive && data.userId !== state.playerId) {
+                    const target = new THREE.Vector3(data.position.x, 0, data.position.z);
+                    gameScene.targetPositions.set(data.userId, target);
+                    
                     const tank = gameScene.tanks.get(data.userId);
-                    if (tank) {
-                        const target = new THREE.Vector3(data.position.x, 0, data.position.z);
-                        tank.position.lerp(target, 0.25);
+                    if (tank && data.rotation !== undefined) {
                         tank.rotation.y += (data.rotation - tank.rotation.y) * 0.2;
                     }
                 }
             });
 
             socket.on('player_shot', (data) => {
-                if (gameScene && gameScene.gameActive && data.userId !== state.playerId) {
-                    const pos = new THREE.Vector3(data.position.x, data.position.y, data.position.z);
-                    const dir = new THREE.Vector3(data.direction.x, data.direction.y, data.direction.z);
-                    gameScene.createBullet(pos, dir);
+                if (gameScene && gameScene.gameActive) {
+                    const pos = new THREE.Vector3(data.position.x, data.position.y || 0, data.position.z);
+                    const dir = new THREE.Vector3(data.direction.x, data.direction.y || 0, data.direction.z);
+                    const bullet = gameScene.createBullet(pos, dir, data.userId);
+                    
+                    // تأثير إطلاق
+                    if (data.userId !== state.playerId) {
+                        const flash = new THREE.Mesh(
+                            new THREE.SphereGeometry(0.5, 8, 8),
+                            new THREE.MeshBasicMaterial({ color: 0xff8844, transparent: true, opacity: 0.5 })
+                        );
+                        flash.position.copy(pos);
+                        gameScene.scene.add(flash);
+                        setTimeout(() => gameScene.scene.remove(flash), 150);
+                    }
                 }
             });
 
             socket.on('player_eliminated', (data) => {
                 if (gameScene && gameScene.gameActive) {
-                    if (data.userId !== state.playerId) {
-                        const tank = gameScene.tanks.get(data.userId);
-                        if (tank) {
-                            gameScene.createExplosion(tank.position, 2.0);
-                            gameScene.scene.remove(tank);
-                            gameScene.tanks.delete(data.userId);
-                        }
+                    // إزالة اللاعب من المشهد
+                    const tank = gameScene.tanks.get(data.userId);
+                    if (tank) {
+                        gameScene.createExplosion(tank.position, 2.0);
+                        gameScene.scene.remove(tank);
+                        gameScene.tanks.delete(data.userId);
+                        gameScene.targetPositions.delete(data.userId);
                     }
+                    
                     state.aliveCount = data.aliveCount || state.aliveCount - 1;
                     document.getElementById('aliveCount').textContent = state.aliveCount;
 
@@ -2789,11 +3071,11 @@
                     const item = document.createElement('div');
                     item.className = 'kill-feed-item';
                     const killerName = data.killerId === state.playerId ? 'أنت' : 'لاعب';
+                    const targetName = data.userId === state.playerId ? 'أنت' : 'لاعب';
                     item.innerHTML = `
                         <span class="killer">${killerName}</span>
-                        💥
-                        <span class="target">أقصى</span>
-                        <span class="target">لاعب</span>
+                        💥 أقصى
+                        <span class="target">${targetName}</span>
                     `;
                     feed.prepend(item);
                     setTimeout(() => item.remove(), 3000);
@@ -2808,6 +3090,11 @@
                 const overlay = document.getElementById('eliminationOverlay');
                 overlay.classList.add('active');
                 document.getElementById('respawnTimer').textContent = '5';
+
+                // تأثير اهتزاز الكاميرا
+                if (gameScene) {
+                    gameScene.cameraShake = 1.5;
+                }
 
                 // بدء العد التنازلي للإحياء
                 let count = 5;
@@ -2831,11 +3118,14 @@
                     if (tank) {
                         const pos = new THREE.Vector3(data.position.x, 0, data.position.z);
                         tank.position.copy(pos);
+                        gameScene.targetPositions.set(data.userId, pos.clone());
                     } else {
-                        const color = Math.random() > 0.5 ? 0x8b5a2b : 0x4a6a8b;
+                        const colors = [0x8b5a2b, 0x6a4a8b, 0x8b2b3a, 0x2b6a8b, 0x8b6a2b];
+                        const color = colors[Math.floor(Math.random() * colors.length)];
                         const pos = data.position || { x: 0, z: 0 };
                         const newTank = gameScene.createTank(color, pos.x, pos.z, data.userId);
                         gameScene.tanks.set(data.userId, newTank);
+                        gameScene.targetPositions.set(data.userId, new THREE.Vector3(pos.x, 0, pos.z));
                     }
                 }
             });
@@ -2844,6 +3134,11 @@
                 if (data.userId === state.playerId) {
                     document.getElementById('healthBar').style.width = data.health + '%';
                     document.getElementById('healthText').textContent = data.health;
+                    
+                    // تأثير اهتزاز عند تلقي الضرر
+                    if (data.damage > 0 && gameScene) {
+                        gameScene.cameraShake = Math.min(1, data.damage / 100);
+                    }
                 }
             });
 
@@ -2860,10 +3155,11 @@
                     item.className = 'kill-feed-item';
                     item.innerHTML = `
                         <span class="killer">${kill.killer || 'لاعب'}</span>
-                        💥
+                        💥 أقصى
                         <span class="target">${kill.target || 'لاعب'}</span>
                     `;
                     feed.appendChild(item);
+                    setTimeout(() => item.remove(), 3000);
                 });
             });
 
@@ -2925,6 +3221,11 @@
                     feedContainer.innerHTML = '<div class="text-muted text-center">لا توجد إقصاءات</div>';
                 }
 
+                // عرض الصورة إذا كانت موجودة
+                if (data.imageUrl) {
+                    // يمكن عرض الصورة هنا
+                }
+
                 showScreen('reportScreen');
                 document.getElementById('gameHud').classList.remove('active');
 
@@ -2946,8 +3247,14 @@
             });
 
             socket.on('leaderboard_update', (data) => {
-                // يمكن عرض المتصدرين في نافذة منفصلة
-                console.log('🏆 Leaderboard:', data.players);
+                if (data.players && data.players.length > 0) {
+                    const topPlayers = data.players.slice(0, 10).map((p, i) => 
+                        `${i+1}. ${p.username} - ⭐${p.elo} - 💀${p.kills}`
+                    ).join('\n');
+                    showNotification(`🏆 المتصدرون:\n${topPlayers}`, 'info');
+                } else {
+                    showNotification('🏆 لا يوجد متصدرون حالياً', 'info');
+                }
             });
 
             // ============================================
@@ -2955,7 +3262,6 @@
             // ============================================
             socket.on('admin_config', (data) => {
                 state.config = data;
-                // تحديث واجهة الإدارة
                 updateAdminUI(data);
             });
 
@@ -2977,7 +3283,9 @@
                     🎮 مباريات نشطة: ${data.monitoring?.games?.active || 0}<br>
                     🔒 أقفال نشطة: ${data.locks?.activeLocks || 0}<br>
                     📋 طابور الانتظار: ${data.queue?.queueLength || 0}<br>
-                    🛡️ حماية: ${data.antiCheat?.bannedUsers || 0} محظورين
+                    🛡️ حماية: ${data.antiCheat?.bannedUsers || 0} محظورين<br>
+                    🗄️ قاعدة البيانات: ${data.database?.connected ? '✅ متصلة' : '❌ غير متصلة'}<br>
+                    ⏱️ وقت التشغيل: ${data.monitoring?.uptimeFormatted || '0s'}
                 `;
             });
 
@@ -2992,6 +3300,8 @@
                         💀 إجمالي الإقصاءات: ${data.stats.totalKills || 0}<br>
                         ⭐ متوسط التصنيف: ${data.stats.averageELO || 0}<br>
                         🚫 محظورين: ${data.stats.bannedUsers || 0}<br>
+                        👥 متصلون حالياً: ${data.stats.onlinePlayers || 0}<br>
+                        🏠 غرف نشطة: ${data.stats.activeRooms || 0}<br>
                         <hr>
                         🏆 أفضل اللاعبين:<br>
                         ${(data.stats.topPlayers || []).map(p => 
@@ -3001,31 +3311,12 @@
                 }
             });
 
-            socket.on('admin_players', (data) => {
-                console.log('👥 Players:', data.players);
-            });
-
-            socket.on('admin_rooms', (data) => {
-                console.log('🏠 Rooms:', data.rooms);
-            });
-
-            socket.on('admin_active_games', (data) => {
-                console.log('🎮 Active games:', data.games);
-            });
-
             socket.on('admin_message', (data) => {
                 showNotification(data.message, data.type || 'info');
             });
 
             socket.on('admin_error', (data) => {
                 showNotification('❌ ' + data.message, 'error');
-            });
-
-            socket.on('config_update', (data) => {
-                // تحديث الإعدادات المحلية
-                if (state.config && state.config[data.section]) {
-                    state.config[data.section][data.key] = data.value;
-                }
             });
 
             // ============================================
@@ -3037,13 +3328,11 @@
 
             socket.on('kicked', (data) => {
                 showNotification('🚫 ' + (data.reason || 'تم طردك من الخادم'), 'error');
-                // العودة للرئيسية
                 exitGame();
             });
 
             socket.on('banned', (data) => {
                 showNotification('⛔ ' + (data.reason || 'تم حظرك من الخادم'), 'error');
-                // العودة للرئيسية
                 exitGame();
             });
 
@@ -3052,7 +3341,6 @@
             // ============================================
             socket.on('reconnect_success', (data) => {
                 showNotification('✅ تم إعادة الاتصال بالمعركة', 'success');
-                // استعادة حالة اللاعب
                 if (gameScene && gameScene.playerTank && data.position) {
                     gameScene.playerTank.position.set(data.position.x, 0, data.position.z);
                 }
@@ -3072,19 +3360,37 @@
             document.getElementById('statWins').textContent = data.wins || 0;
             document.getElementById('statKills').textContent = data.kills || 0;
             document.getElementById('statElo').textContent = data.elo || 1000;
-            document.getElementById('statRank').textContent = data.rank?.rank || 'برونزي';
-            document.getElementById('statRank').style.color = data.rank?.color || '#cd7f32';
+            
+            if (data.rank) {
+                document.getElementById('statRank').textContent = data.rank.rank || 'برونزي';
+                document.getElementById('statRank').style.color = data.rank.color || '#cd7f32';
+            } else {
+                const rank = getRank(data.elo || 1000);
+                document.getElementById('statRank').textContent = rank.rank;
+                document.getElementById('statRank').style.color = rank.color;
+            }
 
             // تحديث الصورة الرمزية
             const avatar = document.getElementById('userAvatar');
             if (data.photoUrl) {
                 avatar.innerHTML = `<img src="${data.photoUrl}" alt="avatar">`;
             } else {
-                avatar.innerHTML = `<span id="avatarText">${(data.username || 'اللاعب')[0].toUpperCase()}</span>`;
+                const initial = (data.username || 'اللاعب')[0].toUpperCase();
+                avatar.innerHTML = `<span id="avatarText">${initial}</span>`;
             }
 
-            // تحديث اسم اللاعب في اللعبة
             document.getElementById('gamePlayerName').textContent = data.username || 'اللاعب';
+            document.getElementById('gameBalance').textContent = data.balance || 0;
+        }
+
+        function getRank(elo) {
+            if (elo < 1000) return { rank: 'برونزي', color: '#cd7f32', icon: '🥉' };
+            if (elo < 1200) return { rank: 'فضي', color: '#c0c0c0', icon: '🥈' };
+            if (elo < 1400) return { rank: 'ذهبي', color: '#ffd700', icon: '🥇' };
+            if (elo < 1600) return { rank: 'بلاتيني', color: '#e5e4e2', icon: '💎' };
+            if (elo < 1800) return { rank: 'ماسي', color: '#b9f2ff', icon: '👑' };
+            if (elo < 2000) return { rank: 'أسطوري', color: '#ff6b6b', icon: '⚡' };
+            return { rank: 'خارق', color: '#ff00ff', icon: '🌟' };
         }
 
         function updateAdminUI(config) {
@@ -3146,6 +3452,11 @@
                 gameScene = null;
             }
 
+            if (moveInterval) {
+                clearInterval(moveInterval);
+                moveInterval = null;
+            }
+
             document.getElementById('gameHud').classList.remove('active');
             document.getElementById('eliminationOverlay').classList.remove('active');
             document.getElementById('reportScreen').classList.remove('active');
@@ -3165,6 +3476,26 @@
                 // إنشاء الجسيمات
                 createParticles();
 
+                console.log('📡 Connecting to server:', CONFIG.SERVER_URL);
+
+                // التحقق من صحة الخادم أولاً
+                try {
+                    const response = await fetch(CONFIG.SERVER_URL + '/health', {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        console.log('✅ Server health check:', data);
+                    } else {
+                        console.warn('⚠️ Server health check failed:', response.status);
+                        showNotification('⚠️ الخادم قد لا يكون متاحاً. جاري المحاولة...', 'warning');
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Could not reach server health endpoint:', error.message);
+                    showNotification('⚠️ جاري الاتصال بالخادم...', 'warning');
+                }
+
                 // الاتصال بالخادم
                 await connectSocket();
 
@@ -3180,7 +3511,9 @@
             } catch (error) {
                 console.error('❌ App initialization error:', error);
                 document.getElementById('loadingScreen').classList.add('hidden');
-                showNotification('❌ فشل الاتصال بالخادم. يرجى المحاولة لاحقاً.', 'error');
+                showNotification('❌ فشل الاتصال بالخادم. يرجى تحديث الصفحة.', 'error');
+                // عرض شاشة تسجيل الدخول مع إمكانية إعادة المحاولة
+                showScreen('authScreen');
             }
         }
 
@@ -3189,7 +3522,7 @@
         // ============================================
         function createParticles() {
             const container = document.getElementById('particles');
-            const count = 50;
+            const count = 60;
             for (let i = 0; i < count; i++) {
                 const particle = document.createElement('div');
                 particle.className = 'particle';
@@ -3210,12 +3543,13 @@
             // تسجيل الدخول عبر تيليغرام
             document.getElementById('telegramLoginBtn').addEventListener('click', () => {
                 // في بيئة تيليغرام، سيتم تحويل المستخدم تلقائياً
-                // هنا نستخدم محاكاة
+                // هنا نستخدم محاكاة للاختبار
                 const mockId = 'telegram_' + Date.now();
                 const url = new URL(window.location);
                 url.searchParams.set('user_id', mockId);
                 url.searchParams.set('username', 'مستخدم_تيليغرام');
                 window.history.replaceState({}, '', url);
+                showNotification('🔄 جاري تسجيل الدخول...', 'info');
                 authenticate();
             });
 
@@ -3226,6 +3560,7 @@
                 url.searchParams.set('user_id', guestId);
                 url.searchParams.set('username', 'ضيف_' + guestId.slice(0, 6));
                 window.history.replaceState({}, '', url);
+                showNotification('🔄 جاري تسجيل الدخول كضيف...', 'info');
                 authenticate();
             });
 
@@ -3233,6 +3568,10 @@
             document.getElementById('playBtn').addEventListener('click', () => {
                 if (!state.user) {
                     showNotification('⚠️ يرجى تسجيل الدخول أولاً', 'warning');
+                    return;
+                }
+                if (!socket) {
+                    showNotification('⚠️ لا يوجد اتصال بالخادم', 'error');
                     return;
                 }
                 showScreen('lobbyScreen');
@@ -3255,6 +3594,10 @@
 
             // المتصدرون
             document.getElementById('leaderboardBtn').addEventListener('click', () => {
+                if (!socket) {
+                    showNotification('⚠️ لا يوجد اتصال بالخادم', 'error');
+                    return;
+                }
                 socket.emit('get_leaderboard');
                 showNotification('🏆 جاري تحميل قائمة المتصدرين...', 'info');
             });
@@ -3278,8 +3621,10 @@
             document.getElementById('reportPlayAgainBtn').addEventListener('click', () => {
                 document.getElementById('reportScreen').classList.remove('active');
                 showScreen('lobbyScreen');
-                socket.emit('join_lobby');
-                socket.emit('list_rooms');
+                if (socket) {
+                    socket.emit('join_lobby');
+                    socket.emit('list_rooms');
+                }
             });
 
             // العودة للرئيسية من التقرير
@@ -3296,9 +3641,11 @@
                 const isActive = this.classList.toggle('active');
                 const label = document.getElementById('maintenanceLabel');
                 label.textContent = isActive ? 'مفعل' : 'معطل';
-                socket.emit('admin_command', {
-                    command: 'toggle_maintenance'
-                });
+                if (socket) {
+                    socket.emit('admin_command', {
+                        command: 'toggle_maintenance'
+                    });
+                }
             });
 
             // تبديل نظام الحماية
@@ -3306,9 +3653,11 @@
                 const isActive = this.classList.toggle('active');
                 const label = document.getElementById('anticheatLabel');
                 label.textContent = isActive ? 'مفعل' : 'معطل';
-                socket.emit('admin_command', {
-                    command: 'toggle_anticheat'
-                });
+                if (socket) {
+                    socket.emit('admin_command', {
+                        command: 'toggle_anticheat'
+                    });
+                }
             });
 
             // حفظ إعدادات الغرف
@@ -3317,7 +3666,7 @@
                     const type = this.dataset.type;
                     const key = this.dataset.key;
                     const value = parseFloat(this.value);
-                    if (!isNaN(value)) {
+                    if (!isNaN(value) && socket) {
                         socket.emit('admin_command', {
                             command: 'update_config',
                             params: {
@@ -3335,14 +3684,16 @@
                 toggle.addEventListener('click', function() {
                     const isActive = this.classList.toggle('active');
                     const type = this.dataset.type;
-                    socket.emit('admin_command', {
-                        command: 'update_config',
-                        params: {
-                            section: 'rooms',
-                            key: type,
-                            value: { enabled: isActive }
-                        }
-                    });
+                    if (socket) {
+                        socket.emit('admin_command', {
+                            command: 'update_config',
+                            params: {
+                                section: 'rooms',
+                                key: type,
+                                value: { enabled: isActive }
+                            }
+                        });
+                    }
                 });
             });
 
@@ -3353,14 +3704,16 @@
                     const urlInput = document.querySelector(`.visual-setting[data-key="${key}"]`);
                     const altInput = document.querySelector(`.visual-setting-alt[data-key="${key}"]`);
                     
-                    socket.emit('admin_command', {
-                        command: 'update_visual_setting',
-                        params: {
-                            eventKey: key,
-                            imageUrl: urlInput?.value || '',
-                            altText: altInput?.value || ''
-                        }
-                    });
+                    if (socket) {
+                        socket.emit('admin_command', {
+                            command: 'update_visual_setting',
+                            params: {
+                                eventKey: key,
+                                imageUrl: urlInput?.value || '',
+                                altText: altInput?.value || ''
+                            }
+                        });
+                    }
                 });
             });
 
@@ -3372,14 +3725,16 @@
                     showNotification('⚠️ أدخل معرف اللاعب والمبلغ', 'warning');
                     return;
                 }
-                socket.emit('admin_command', {
-                    command: 'set_balance',
-                    params: {
-                        userId: userId,
-                        amount: amount,
-                        action: 'add'
-                    }
-                });
+                if (socket) {
+                    socket.emit('admin_command', {
+                        command: 'set_balance',
+                        params: {
+                            userId: userId,
+                            amount: amount,
+                            action: 'add'
+                        }
+                    });
+                }
             });
 
             document.getElementById('adminSubtractBalance').addEventListener('click', () => {
@@ -3389,14 +3744,16 @@
                     showNotification('⚠️ أدخل معرف اللاعب والمبلغ', 'warning');
                     return;
                 }
-                socket.emit('admin_command', {
-                    command: 'set_balance',
-                    params: {
-                        userId: userId,
-                        amount: amount,
-                        action: 'subtract'
-                    }
-                });
+                if (socket) {
+                    socket.emit('admin_command', {
+                        command: 'set_balance',
+                        params: {
+                            userId: userId,
+                            amount: amount,
+                            action: 'subtract'
+                        }
+                    });
+                }
             });
 
             document.getElementById('adminKickPlayer').addEventListener('click', () => {
@@ -3406,13 +3763,15 @@
                     return;
                 }
                 if (confirm(`هل أنت متأكد من طرد اللاعب ${userId}؟`)) {
-                    socket.emit('admin_command', {
-                        command: 'kick_player',
-                        params: {
-                            userId: userId,
-                            reason: 'تم طردك بواسطة المدير'
-                        }
-                    });
+                    if (socket) {
+                        socket.emit('admin_command', {
+                            command: 'kick_player',
+                            params: {
+                                userId: userId,
+                                reason: 'تم طردك بواسطة المدير'
+                            }
+                        });
+                    }
                 }
             });
 
@@ -3423,40 +3782,62 @@
                     return;
                 }
                 if (confirm(`⚠️ هل أنت متأكد من حظر اللاعب ${userId} نهائياً؟`)) {
-                    socket.emit('admin_command', {
-                        command: 'ban_player',
-                        params: {
-                            userId: userId,
-                            duration: 24 * 60 * 60 * 1000,
-                            reason: 'تم حظرك بواسطة المدير'
-                        }
-                    });
+                    if (socket) {
+                        socket.emit('admin_command', {
+                            command: 'ban_player',
+                            params: {
+                                userId: userId,
+                                duration: 24 * 60 * 60 * 1000,
+                                reason: 'تم حظرك بواسطة المدير'
+                            }
+                        });
+                    }
                 }
             });
 
             // تحديث الإحصائيات
             document.getElementById('adminRefreshStats').addEventListener('click', () => {
-                socket.emit('admin_command', { command: 'get_stats' });
-                socket.emit('admin_command', { command: 'get_monitoring' });
-                showNotification('🔄 جاري تحديث الإحصائيات...', 'info');
+                if (socket) {
+                    socket.emit('admin_command', { command: 'get_stats' });
+                    socket.emit('admin_command', { command: 'get_monitoring' });
+                    showNotification('🔄 جاري تحديث الإحصائيات...', 'info');
+                }
             });
 
-            // إعادة تعيين البيانات
-            document.getElementById('adminResetData').addEventListener('click', () => {
-                if (confirm('⚠️ تحذير: سيتم مسح جميع بيانات اللاعبين نهائياً! هل أنت متأكد؟')) {
-                    if (confirm('تأكيد نهائي: اكتب "مسح" في المربع أدناه')) {
-                        const confirmText = prompt('اكتب "مسح" للتأكيد النهائي');
-                        if (confirmText === 'مسح') {
-                            socket.emit('admin_command', { command: 'reset_data' });
-                        }
-                    }
+            // فحص قاعدة البيانات
+            document.getElementById('adminDbHealth').addEventListener('click', () => {
+                if (socket) {
+                    socket.emit('admin_command', { command: 'get_database_health' });
+                }
+            });
+
+            // إعادة اتصال قسري بقاعدة البيانات
+            document.getElementById('adminForceReconnect').addEventListener('click', () => {
+                if (socket) {
+                    socket.emit('admin_command', { command: 'force_reconnect_db' });
                 }
             });
 
             // إعادة تعيين الإعدادات
             document.getElementById('adminResetConfig').addEventListener('click', () => {
                 if (confirm('⚠️ هل أنت متأكد من إعادة تعيين جميع الإعدادات إلى الوضع الافتراضي؟')) {
-                    socket.emit('admin_command', { command: 'reset_config' });
+                    if (socket) {
+                        socket.emit('admin_command', { command: 'reset_config' });
+                    }
+                }
+            });
+
+            // مسح البيانات
+            document.getElementById('adminResetData').addEventListener('click', () => {
+                if (confirm('⚠️ تحذير: سيتم مسح جميع بيانات اللاعبين نهائياً! هل أنت متأكد؟')) {
+                    if (confirm('تأكيد نهائي: اكتب "مسح" في المربع أدناه')) {
+                        const confirmText = prompt('اكتب "مسح" للتأكيد النهائي');
+                        if (confirmText === 'مسح') {
+                            if (socket) {
+                                socket.emit('admin_command', { command: 'reset_data' });
+                            }
+                        }
+                    }
                 }
             });
         }
@@ -3464,7 +3845,10 @@
         // ============================================
         // 🚀 Start App
         // ============================================
-        document.addEventListener('DOMContentLoaded', initApp);
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 Starting Battle Tanks Royale...');
+            initApp();
+        });
 
         // التعامل مع تدوير الشاشة للعبة
         window.addEventListener('orientationchange', () => {
@@ -3478,8 +3862,27 @@
             }
         });
 
-        console.log('🎮 Battle Tanks Royale - UI v1.0.0');
+        // إعادة محاولة الاتصال عند فقدان الاتصال بالإنترنت
+        window.addEventListener('online', () => {
+            console.log('🌐 Network online, reconnecting...');
+            if (!socket || !socket.connected) {
+                showNotification('🔄 تم استعادة الاتصال بالإنترنت، جاري إعادة الاتصال...', 'info');
+                connectSocket().then(() => {
+                    if (state.user) authenticate();
+                }).catch(() => {
+                    showNotification('❌ فشل إعادة الاتصال بالخادم', 'error');
+                });
+            }
+        });
+
+        window.addEventListener('offline', () => {
+            console.log('🌐 Network offline');
+            showNotification('⚠️ انقطع الاتصال بالإنترنت', 'warning');
+        });
+
+        console.log('🎮 Battle Tanks Royale - UI v2.0.0');
         console.log('📱 Designed for Telegram Web App');
+        console.log('📡 Server:', CONFIG.SERVER_URL);
     </script>
 </body>
 </html>
