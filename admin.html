@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Battle Tanks Royale - لوحة التحكم 🎮</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        /* ============================================
+           🎯 ADMIN STYLES
+           ============================================ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #d4af37;
+            --primary-dark: #b8860b;
+            --primary-light: #f0d060;
+            --bg-dark: #0a0f1a;
+            --bg-card: rgba(20, 30, 50, 0.92);
+            --text-light: #ffffff;
+            --text-muted: #8a9aa8;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            --radius: 14px;
+            --danger: #e74c3c;
+            --success: #2ecc71;
+            --header-height: 56px;
+        }
+
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-light);
+            min-height: 100vh;
+            padding: 16px;
+            padding-top: calc(var(--header-height) + 16px);
+        }
+
+        /* ===== HEADER ===== */
+        .admin-top-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--header-height);
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 16px;
+            z-index: 100;
+        }
+
+        .admin-top-header .brand {
+            font-size: 18px;
+            font-weight: 900;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .admin-top-header .back-btn {
+            padding: 6px 16px;
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 30px;
+            background: transparent;
+            color: var(--primary);
+            font-family: 'Cairo', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .admin-top-header .back-btn:hover {
+            background: rgba(212, 175, 55, 0.1);
+        }
+
+        .admin-top-header .status {
+            font-size: 12px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .admin-top-header .status .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .admin-top-header .status .dot.online {
+            background: var(--success);
+        }
+
+        .admin-top-header .status .dot.offline {
+            background: var(--danger);
+        }
+
+        /* ===== CONTAINER ===== */
+        .admin-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        /* ===== LOGIN ===== */
+        .admin-login-box {
+            max-width: 400px;
+            margin: 40px auto;
+            background: var(--bg-card);
+            padding: 36px 28px;
+            border-radius: var(--radius);
+            text-align: center;
+            border: 1px solid rgba(212, 175, 55, 0.15);
+        }
+
+        .admin-login-box .icon {
+            font-size: 50px;
+            margin-bottom: 10px;
+        }
+
+        .admin-login-box h2 {
+            color: var(--primary);
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .admin-login-box .sub {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .admin-login-box .input-group {
+            margin-bottom: 12px;
+        }
+
+        .admin-login-box input {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: #fff;
+            font-size: 16px;
+            font-family: 'Cairo', sans-serif;
+            text-align: center;
+        }
+
+        .admin-login-box input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .admin-login-box button {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+            cursor: pointer;
+            transition: transform 0.2s;
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+        }
+
+        .admin-login-box button:active {
+            transform: scale(0.96);
+        }
+
+        .admin-login-box .error {
+            color: var(--danger);
+            font-size: 13px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .admin-login-box .error.show {
+            display: block;
+        }
+
+        /* ===== ADMIN CONTENT ===== */
+        #adminContent {
+            display: none;
+        }
+
+        /* ===== SECTIONS ===== */
+        .admin-section {
+            background: var(--bg-card);
+            padding: 16px;
+            border-radius: var(--radius);
+            margin-bottom: 12px;
+            border: 1px solid rgba(212, 175, 55, 0.05);
+        }
+
+        .admin-section .section-title {
+            color: var(--primary);
+            font-size: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .admin-section .section-title i {
+            font-size: 18px;
+        }
+
+        .admin-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 10px;
+        }
+
+        .admin-grid .full {
+            grid-column: 1 / -1;
+        }
+
+        .admin-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .admin-input {
+            width: 100%;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 13px;
+            font-family: 'Cairo', sans-serif;
+        }
+
+        .admin-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .admin-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .admin-btn {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'Cairo', sans-serif;
+            font-size: 13px;
+            color: #fff;
+            transition: transform 0.2s;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .admin-btn:active {
+            transform: scale(0.96);
+        }
+
+        .admin-btn.primary {
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+        }
+
+        .admin-btn.danger {
+            background: linear-gradient(135deg, #c0392b, #e74c3c);
+        }
+
+        .admin-btn.success {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+        }
+
+        .admin-btn.info {
+            background: linear-gradient(135deg, #2980b9, #3498db);
+        }
+
+        .admin-btn.warning {
+            background: linear-gradient(135deg, #f39c12, #f1c40f);
+        }
+
+        .admin-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 10px;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 10px;
+        }
+
+        .admin-toggle .toggle-label {
+            font-size: 13px;
+        }
+
+        .admin-toggle .switch {
+            width: 40px;
+            height: 22px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 11px;
+            cursor: pointer;
+            transition: 0.3s;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .admin-toggle .switch.active {
+            background: var(--primary);
+        }
+
+        .admin-toggle .switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 18px;
+            height: 18px;
+            background: #fff;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        .admin-toggle .switch.active::after {
+            left: 20px;
+        }
+
+        .admin-stats-box {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 12px;
+            line-height: 1.8;
+            font-family: 'Courier New', monospace;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 8px;
+        }
+
+        .admin-stats-box .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 2px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .admin-stats-box .stat-row .label {
+            color: var(--text-muted);
+        }
+
+        .admin-stats-box .stat-row .value {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .admin-stats-box .stat-row .value.green {
+            color: var(--success);
+        }
+
+        .admin-stats-box .stat-row .value.red {
+            color: var(--danger);
+        }
+
+        .admin-divider {
+            border: none;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            margin: 10px 0;
+        }
+
+        /* ===== DANGER ZONE ===== */
+        .danger-zone {
+            border-color: rgba(231, 76, 60, 0.3);
+        }
+
+        .danger-zone .section-title {
+            color: var(--danger);
+        }
+
+        /* ===== TOAST ===== */
+        .toast {
+            position: fixed;
+            top: calc(var(--header-height) + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 18px;
+            background: rgba(0, 0, 0, 0.92);
+            backdrop-filter: blur(12px);
+            border-radius: 10px;
+            color: #fff;
+            font-family: 'Cairo', sans-serif;
+            font-size: 13px;
+            z-index: 99999;
+            border-right: 4px solid #3498db;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            animation: toastIn 0.3s ease;
+            max-width: 90%;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        @keyframes toastIn {
+            0% {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+
+        /* ===== SCROLLBAR ===== */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 10px;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 600px) {
+            .admin-grid {
+                grid-template-columns: 1fr;
+            }
+            .admin-login-box {
+                margin: 20px auto;
+                padding: 24px 16px;
+            }
+            body {
+                padding: 12px;
+                padding-top: calc(var(--header-height) + 12px);
+            }
+            .admin-top-header .brand {
+                font-size: 15px;
+            }
+            .admin-top-header .status {
+                font-size: 10px;
+            }
+            .admin-top-header .back-btn {
+                font-size: 12px;
+                padding: 4px 12px;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .admin-top-header .status .text {
+                display: none;
+            }
+        }
+
+        /* ===== UTILITY ===== */
+        .text-muted {
+            color: var(--text-muted);
+        }
+        .text-center {
+            text-align: center;
+        }
+        .mt-8 {
+            margin-top: 8px;
+        }
+        .mb-8 {
+            margin-bottom: 8px;
+        }
+        .flex-1 {
+            flex: 1;
+        }
+        .hidden {
+            display: none !important;
+        }
+        .gap-6 {
+            gap: 6px;
+        }
+        .flex {
+            display: flex;
+        }
+        .flex-center {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ===== TOP HEADER ===== -->
+    <header class="admin-top-header">
+        <div class="brand">
+            <i class="fas fa-cog"></i>
+            <span>لوحة التحكم</span>
+        </div>
+        <div class="status">
+            <span class="dot offline" id="statusDot"></span>
+            <span class="text" id="statusText">غير متصل</span>
+        </div>
+        <a href="index.html" class="back-btn">
+            <i class="fas fa-arrow-right"></i> العودة
+        </a>
+    </header>
+
+    <!-- ===== MAIN ===== -->
+    <div class="admin-container">
+
+        <!-- ===== LOGIN ===== -->
+        <div id="loginBox" class="admin-login-box">
+            <div class="icon">🔐</div>
+            <h2>المصادقة الإدارية</h2>
+            <p class="sub">أدخل كلمة المرور للوصول إلى لوحة التحكم</p>
+            <div class="input-group">
+                <input type="password" id="adminPasswordInput" placeholder="كلمة المرور" autocomplete="current-password">
+            </div>
+            <button id="adminLoginBtn">
+                <i class="fas fa-sign-in-alt"></i> تسجيل الدخول
+            </button>
+            <div class="error" id="loginError">❌ كلمة مرور خاطئة</div>
+        </div>
+
+        <!-- ===== ADMIN CONTENT ===== -->
+        <div id="adminContent">
+
+            <!-- ===== SERVER STATUS ===== -->
+            <div class="admin-section">
+                <div class="section-title"><i class="fas fa-server"></i> حالة الخادم</div>
+                <div class="admin-stats-box" id="adminMonitoring">
+                    <div class="stat-row"><span class="label">جاري التحميل...</span></div>
+                </div>
+            </div>
+
+            <!-- ===== SERVER SETTINGS ===== -->
+            <div class="admin-section">
+                <div class="section-title"><i class="fas fa-sliders-h"></i> إعدادات الخادم</div>
+                <div class="admin-grid">
+                    <div>
+                        <label class="admin-label">وضع الصيانة</label>
+                        <div class="admin-toggle">
+                            <span class="toggle-label" id="maintenanceLabel">معطل</span>
+                            <div class="switch" id="maintenanceToggle"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="admin-label">نظام الحماية</label>
+                        <div class="admin-toggle">
+                            <span class="toggle-label" id="anticheatLabel">مفعل</span>
+                            <div class="switch active" id="anticheatToggle"></div>
+                        </div>
+                    </div>
+                    <div class="full">
+                        <label class="admin-label">كلمة مرور المدير</label>
+                        <div style="display:flex;gap:8px;">
+                            <input class="admin-input" id="adminPasswordSetting" type="password" placeholder="كلمة مرور جديدة" style="flex:1;">
+                            <button class="admin-btn primary" id="adminUpdatePassword" style="width:auto;padding:8px 20px;">تحديث</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== ROOM SETTINGS ===== -->
+            <div class="admin-section">
+                <div class="section-title"><i class="fas fa-door-open"></i> إعدادات الغرف</div>
+                <div id="roomSettingsGrid" class="admin-grid"></div>
+            </div>
+
+            <!-- ===== VISUAL SETTINGS ===== -->
+            <div class="admin-section">
+                <div class="section-title"><i class="fas fa-image"></i> الإعدادات البصرية</div>
+                <div id="visualSettingsGrid" class="admin-grid"></div>
+            </div>
+
+            <!-- ===== PLAYER MANAGEMENT ===== -->
+            <div class="admin-section">
+                <div class="section-title"><i class="fas fa-users-cog"></i> إدارة اللاعبين</div>
+                <div class="admin-grid">
+                    <div>
+                        <label class="admin-label">معرف اللاعب</label>
+                        <input class="admin-input" id="adminTargetUserId" placeholder="أدخل المعرف">
+                    </div>
+                    <div>
+                        <label class="admin-label">المبلغ</label>
+                        <input class="admin-input" id="adminAmount" type="number" placeholder="المبلغ">
+                    </div>
+                    <button class="admin-btn success" id="adminAddBalance">
+                        <i class="fas fa-plus"></i> إضافة رصيد
+                    </button>
+                    <button class="admin-btn danger" id="adminSubtractBalance">
+                        <i class="fas fa-minus"></i> سحب رصيد
+                    </button>
+                    <button class="admin-btn danger" id="adminKickPlayer">
+                        <i class="fas fa-user-slash"></i> طرد لاعب
+                    </button>
+                    <button class="admin-btn danger" id="adminBanPlayer">
+                        <i class="fas fa-ban"></i> حظر لاعب
+                    </button>
+                    <button class="admin-btn info full" id="adminSetAdmin">
+                        <i class="fas fa-user-cog"></i> ترقية/إزالة صلاحيات
+                    </button>
+                </div>
+            </div>
+
+            <!-- ===== STATISTICS ===== -->
+            <div class="admin-section">
+                <div class="section-title"><i class="fas fa-chart-bar"></i> إحصائيات</div>
+                <button class="admin-btn primary" id="adminRefreshStats" style="width:auto;padding:8px 24px;margin-bottom:10px;">
+                    <i class="fas fa-sync"></i> تحديث
+                </button>
+                <div class="admin-stats-box" id="adminStats">
+                    <div class="stat-row"><span class="label">جاري التحميل...</span></div>
+                </div>
+            </div>
+
+            <!-- ===== DATABASE ===== -->
+            <div class="admin-section">
+                <div class="section-title"><i class="fas fa-database"></i> قاعدة البيانات</div>
+                <div class="admin-grid">
+                    <button class="admin-btn info" id="adminDbHealth">
+                        <i class="fas fa-heartbeat"></i> فحص الصحة
+                    </button>
+                    <button class="admin-btn warning" id="adminForceReconnect">
+                        <i class="fas fa-sync-alt"></i> إعادة اتصال
+                    </button>
+                </div>
+                <div class="admin-stats-box" id="adminDbStatus" style="margin-top:8px;">
+                    <div class="stat-row"><span class="label">جاري التحميل...</span></div>
+                </div>
+            </div>
+
+            <!-- ===== PLAYERS LIST ===== -->
+            <div class="admin-section">
+                <div class="section-title"><i class="fas fa-users"></i> اللاعبين المتصلين</div>
+                <button class="admin-btn primary" id="adminRefreshPlayers" style="width:auto;padding:8px 24px;margin-bottom:10px;">
+                    <i class="fas fa-sync"></i> تحديث
+                </button>
+                <div class="admin-stats-box" id="adminPlayersList">
+                    <div class="stat-row"><span class="label">جاري التحميل...</span></div>
+                </div>
+            </div>
+
+            <!-- ===== ACTIVE GAMES ===== -->
+            <div class="admin-section">
+                <div class="section-title"><i class="fas fa-gamepad"></i> المباريات النشطة</div>
+                <button class="admin-btn primary" id="adminRefreshGames" style="width:auto;padding:8px 24px;margin-bottom:10px;">
+                    <i class="fas fa-sync"></i> تحديث
+                </button>
+                <div class="admin-stats-box" id="adminActiveGames">
+                    <div class="stat-row"><span class="label">جاري التحميل...</span></div>
+                </div>
+            </div>
+
+            <!-- ===== ROOMS LIST ===== -->
+            <div class="admin-section">
+                <div class="section-title"><i class="fas fa-door-open"></i> جميع الغرف</div>
+                <button class="admin-btn primary" id="adminRefreshRooms" style="width:auto;padding:8px 24px;margin-bottom:10px;">
+                    <i class="fas fa-sync"></i> تحديث
+                </button>
+                <div class="admin-stats-box" id="adminRoomsList">
+                    <div class="stat-row"><span class="label">جاري التحميل...</span></div>
+                </div>
+            </div>
+
+            <!-- ===== DANGER ZONE ===== -->
+            <div class="admin-section danger-zone">
+                <div class="section-title"><i class="fas fa-exclamation-triangle"></i> منطقة الخطر</div>
+                <div class="admin-grid">
+                    <button class="admin-btn danger" id="adminResetConfig">
+                        <i class="fas fa-undo"></i> إعادة تعيين الإعدادات
+                    </button>
+                    <button class="admin-btn danger" id="adminResetData">
+                        <i class="fas fa-trash"></i> مسح جميع البيانات
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- ========== JAVASCRIPT ========== -->
+    <!-- ============================================================ -->
+    <script>
+        // ============================================
+        // CONFIG
+        // ============================================
+        const CONFIG = {
+            SERVER_URL: 'https://game1-duy1.onrender.com',
+            ADMIN_PASSWORD: 'Admin@2024#Battle'
+        };
+
+        console.log('🔐 Admin Panel v1.0.0');
+        console.log('📡 Server:', CONFIG.SERVER_URL);
+
+        // ============================================
+        // STATE
+        // ============================================
+        const state = {
+            socket: null,
+            isLoggedIn: false,
+            userId: null,
+            isAdmin: false,
+            config: {},
+            visualSettings: []
+        };
+
+        // ============================================
+        // DOM HELPERS
+        // ============================================
+        const $ = id => document.getElementById(id);
+
+        function showToast(msg, type = 'info') {
+            const colors = { success: '#2ecc71', error: '#e74c3c', warning: '#f1c40f', info: '#3498db' };
+            document.querySelectorAll('.toast').forEach(t => t.remove());
+            const t = document.createElement('div');
+            t.className = 'toast';
+            t.style.borderRightColor = colors[type] || colors.info;
+            t.textContent = msg;
+            document.body.appendChild(t);
+            setTimeout(() => {
+                t.style.opacity = '0';
+                t.style.transform = 'translateX(-50%) translateY(-20px)';
+                t.style.transition = 'all 0.3s';
+                setTimeout(() => t.remove(), 300);
+            }, 3500);
+        }
+
+        function updateStatus(connected) {
+            const dot = $('statusDot');
+            const text = $('statusText');
+            if (connected) {
+                dot.className = 'dot online';
+                text.textContent = 'متصل';
+            } else {
+                dot.className = 'dot offline';
+                text.textContent = 'غير متصل';
+            }
+        }
+
+        // ============================================
+        // SOCKET CONNECTION
+        // ============================================
+        function connectSocket() {
+            return new Promise((resolve, reject) => {
+                try {
+                    if (state.socket && state.socket.connected) {
+                        resolve(state.socket);
+                        return;
+                    }
+
+                    const socket = io(CONFIG.SERVER_URL, {
+                        transports: ['websocket', 'polling'],
+                        reconnection: true,
+                        reconnectionAttempts: 20,
+                        reconnectionDelay: 2000,
+                        timeout: 30000,
+                        pingTimeout: 60000,
+                        pingInterval: 25000
+                    });
+
+                    state.socket = socket;
+
+                    socket.on('connect', () => {
+                        console.log('✅ Connected to server');
+                        updateStatus(true);
+                        showToast('✅ تم الاتصال بالخادم', 'success');
+                        resolve(socket);
+                    });
+
+                    socket.on('connect_error', (err) => {
+                        console.error('❌ Connection error:', err.message);
+                        updateStatus(false);
+                        showToast('⚠️ فشل الاتصال بالخادم', 'warning');
+                    });
+
+                    socket.on('disconnect', () => {
+                        console.log('🔌 Disconnected');
+                        updateStatus(false);
+                        showToast('⚠️ انقطع الاتصال بالخادم', 'warning');
+                    });
+
+                    socket.on('reconnect', () => {
+                        console.log('🔄 Reconnected');
+                        updateStatus(true);
+                        showToast('✅ تم إعادة الاتصال', 'success');
+                        if (state.isLoggedIn) {
+                            // إعادة المصادقة
+                            const password = localStorage.getItem('adminPassword');
+                            if (password) {
+                                socket.emit('admin_login', { password });
+                            }
+                        }
+                    });
+
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        }
+
+        // ============================================
+        // SOCKET EVENTS
+        // ============================================
+        function setupSocketEvents() {
+            const socket = state.socket;
+            if (!socket) return;
+
+            // ---- ADMIN LOGIN ----
+            socket.on('admin_login_success', (data) => {
+                state.isLoggedIn = true;
+                localStorage.setItem('adminPassword', $('adminPasswordInput').value);
+                showToast('✅ ' + data.message, 'success');
+                $('loginBox').style.display = 'none';
+                $('adminContent').style.display = 'block';
+                $('loginError').classList.remove('show');
+                // تحميل البيانات
+                loadAllData();
+            });
+
+            socket.on('admin_error', (data) => {
+                $('loginError').textContent = '❌ ' + data.message;
+                $('loginError').classList.add('show');
+                showToast('❌ ' + data.message, 'error');
+            });
+
+            // ---- ADMIN DATA ----
+            socket.on('admin_config', (data) => {
+                state.config = data;
+                updateAdminUI(data);
+            });
+
+            socket.on('admin_visual_settings', (data) => {
+                state.visualSettings = data;
+                updateVisualUI(data);
+            });
+
+            socket.on('admin_monitoring', (data) => {
+                updateMonitoringUI(data);
+            });
+
+            socket.on('admin_stats', (data) => {
+                updateStatsUI(data.stats);
+            });
+
+            socket.on('admin_players', (data) => {
+                updatePlayersUI(data.players);
+            });
+
+            socket.on('admin_rooms', (data) => {
+                updateRoomsUI(data.rooms);
+            });
+
+            socket.on('admin_active_games', (data) => {
+                updateGamesUI(data.games);
+            });
+
+            socket.on('admin_message', (data) => {
+                showToast(data.message, data.type || 'info');
+            });
+
+            socket.on('admin_db_status', (data) => {
+                updateDbStatusUI(data);
+            });
+        }
+
+        // ============================================
+        // LOAD ALL DATA
+        // ============================================
+        function loadAllData() {
+            const socket = state.socket;
+            if (!socket) return;
+
+            socket.emit('admin_command', { command: 'get_config' });
+            socket.emit('admin_command', { command: 'get_visual_settings' });
+            socket.emit('admin_command', { command: 'get_monitoring' });
+            socket.emit('admin_command', { command: 'get_stats' });
+            socket.emit('admin_command', { command: 'get_players' });
+            socket.emit('admin_command', { command: 'get_rooms' });
+            socket.emit('admin_command', { command: 'get_active_games' });
+            socket.emit('admin_command', { command: 'get_database_health' });
+        }
+
+        // ============================================
+        // UI UPDATES
+        // ============================================
+        function updateAdminUI(config) {
+            if (!config) return;
+
+            // Anti-Cheat
+            const ac = $('anticheatToggle');
+            const acLabel = $('anticheatLabel');
+            const en = config.system?.antiCheatEnabled !== false;
+            ac.classList.toggle('active', en);
+            acLabel.textContent = en ? 'مفعل' : 'معطل';
+
+            // Maintenance
+            const mt = $('maintenanceToggle');
+            const mtLabel = $('maintenanceLabel');
+            const maint = config.system?.maintenanceMode || false;
+            mt.classList.toggle('active', maint);
+            mtLabel.textContent = maint ? 'مفعل' : 'معطل';
+
+            // Room settings
+            const grid = $('roomSettingsGrid');
+            grid.innerHTML = '';
+            const types = ['beginner', 'advanced', 'pro'];
+            const names = { beginner: '🟢 المبتدئين', advanced: '🟡 المتقدمين', pro: '🔴 المحترفين' };
+
+            types.forEach(t => {
+                const d = document.createElement('div');
+                d.style.cssText = 'padding:8px;background:rgba(255,255,255,0.03);border-radius:10px;';
+                const settings = config.rooms?.[t] || {};
+                d.innerHTML = `
+                    <label class="admin-label">${names[t]}</label>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+                        <input class="admin-input room-setting" data-type="${t}" data-key="maxSeats" placeholder="المقاعد" type="number" value="${settings.maxSeats || 8}">
+                        <input class="admin-input room-setting" data-type="${t}" data-key="seatPrice" placeholder="السعر" type="number" value="${settings.seatPrice || 1}">
+                        <div class="admin-toggle" style="grid-column:1/-1;">
+                            <span class="toggle-label">مفعل</span>
+                            <div class="switch active room-toggle" data-type="${t}"></div>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(d);
+            });
+
+            // Update toggles
+            document.querySelectorAll('.room-toggle').forEach(tog => {
+                const t = tog.dataset.type;
+                const enabled = config.rooms?.[t]?.enabled !== false;
+                tog.classList.toggle('active', enabled);
+            });
+
+            // Password field
+            if (config.system?.adminPassword) {
+                $('adminPasswordSetting').value = config.system.adminPassword;
+            }
+        }
+
+        function updateVisualUI(settings) {
+            const grid = $('visualSettingsGrid');
+            grid.innerHTML = '';
+
+            const events = [
+                { key: 'game_logo', label: '🎮 شعار اللعبة' },
+                { key: 'elimination', label: '💀 إقصاء' },
+                { key: 'kill', label: '🔫 قتل' },
+                { key: 'winner', label: '🏆 فائز' },
+                { key: 'game_start', label: '🎮 بدء' },
+                { key: 'game_end', label: '🏁 نهاية' }
+            ];
+
+            events.forEach(e => {
+                const setting = settings.find(s => s.event_key === e.key) || {};
+                const d = document.createElement('div');
+                d.style.cssText = 'padding:8px;background:rgba(255,255,255,0.03);border-radius:10px;';
+                d.innerHTML = `
+                    <label class="admin-label">${e.label}</label>
+                    <input class="admin-input visual-setting" data-key="${e.key}" placeholder="رابط الصورة" value="${setting.image_url || ''}">
+                    <input class="admin-input visual-setting-alt" data-key="${e.key}" placeholder="النص البديل" style="margin-top:4px;" value="${setting.alt_text || ''}">
+                    <button class="admin-btn primary visual-update-btn" data-key="${e.key}" style="margin-top:4px;padding:6px;font-size:12px;">تحديث</button>
+                `;
+                grid.appendChild(d);
+            });
+        }
+
+        function updateMonitoringUI(data) {
+            const box = $('adminMonitoring');
+            const m = data.monitoring || {};
+            const l = data.locks || {};
+            const a = data.antiCheat || {};
+            const q = data.queue || {};
+            const d = data.database || {};
+
+            box.innerHTML = `
+                <div class="stat-row"><span class="label">👥 المتصلون</span><span class="value">${m.connections?.active || 0}</span></div>
+                <div class="stat-row"><span class="label">🎮 المباريات النشطة</span><span class="value">${m.games?.active || 0}</span></div>
+                <div class="stat-row"><span class="label">🔒 الأقفال النشطة</span><span class="value">${l.activeLocks || 0}</span></div>
+                <div class="stat-row"><span class="label">📋 طابور الانتظار</span><span class="value">${q.queueLength || 0}</span></div>
+                <div class="stat-row"><span class="label">🛡️ المحظورين</span><span class="value">${a.bannedUsers || 0}</span></div>
+                <div class="stat-row"><span class="label">🗄️ قاعدة البيانات</span><span class="value ${d.connected ? 'green' : 'red'}">${d.connected ? '✅ متصلة' : '❌ غير متصلة'}</span></div>
+                <div class="stat-row"><span class="label">⏱️ وقت التشغيل</span><span class="value">${m.uptimeFormatted || '0s'}</span></div>
+                <div class="stat-row"><span class="label">📊 الطلبات</span><span class="value">${m.requests?.total || 0}</span></div>
+                <div class="stat-row"><span class="label">⚠️ الأخطاء</span><span class="value red">${m.errors?.total || 0}</span></div>
+            `;
+        }
+
+        function updateStatsUI(stats) {
+            const box = $('adminStats');
+            if (!stats) {
+                box.innerHTML = '<div class="stat-row"><span class="label">لا توجد بيانات</span></div>';
+                return;
+            }
+
+            let topPlayers = '';
+            if (stats.topPlayers && stats.topPlayers.length > 0) {
+                topPlayers = stats.topPlayers.map((p, i) =>
+                    `<div class="stat-row"><span class="label">#${i+1} ${p.username || 'لاعب'}</span><span class="value">⭐${p.elo} | 💀${p.kills}</span></div>`
+                ).join('');
+            } else {
+                topPlayers = '<div class="stat-row"><span class="label">لا يوجد لاعبين</span></div>';
+            }
+
+            box.innerHTML = `
+                <div class="stat-row"><span class="label">👥 إجمالي اللاعبين</span><span class="value">${stats.totalUsers || 0}</span></div>
+                <div class="stat-row"><span class="label">💰 إجمالي الأرصدة</span><span class="value">${stats.totalBalance || 0}$</span></div>
+                <div class="stat-row"><span class="label">🎮 إجمالي المباريات</span><span class="value">${stats.totalGames || 0}</span></div>
+                <div class="stat-row"><span class="label">🏆 إجمالي الانتصارات</span><span class="value">${stats.totalWins || 0}</span></div>
+                <div class="stat-row"><span class="label">💀 إجمالي الإقصاءات</span><span class="value">${stats.totalKills || 0}</span></div>
+                <div class="stat-row"><span class="label">⭐ متوسط التصنيف</span><span class="value">${stats.averageELO || 1000}</span></div>
+                <div class="stat-row"><span class="label">🚫 المحظورين</span><span class="value red">${stats.bannedUsers || 0}</span></div>
+                <div class="stat-row"><span class="label">👑 المديرين</span><span class="value">${stats.adminUsers || 0}</span></div>
+                <hr class="admin-divider">
+                <div style="color:var(--primary);font-weight:600;margin-bottom:4px;">🏆 أفضل اللاعبين</div>
+                ${topPlayers}
+            `;
+        }
+
+        function updatePlayersUI(players) {
+            const box = $('adminPlayersList');
+            if (!players || players.length === 0) {
+                box.innerHTML = '<div class="stat-row"><span class="label">لا يوجد لاعبين متصلين</span></div>';
+                return;
+            }
+
+            box.innerHTML = players.map(p =>
+                `<div class="stat-row">
+                    <span class="label">${p.username || p.userId || 'لاعب'}</span>
+                    <span class="value">${p.roomId ? '🏠 في غرفة' : '🆓 متفرغ'} | 💰${p.balance || 0}</span>
+                </div>`
+            ).join('');
+        }
+
+        function updateRoomsUI(rooms) {
+            const box = $('adminRoomsList');
+            if (!rooms || rooms.length === 0) {
+                box.innerHTML = '<div class="stat-row"><span class="label">لا توجد غرف</span></div>';
+                return;
+            }
+
+            box.innerHTML = rooms.map(r =>
+                `<div class="stat-row">
+                    <span class="label">${r.name}</span>
+                    <span class="value">${r.status === 'active' ? '⚔️ جارية' : '⏳ في الانتظار'} | 👥${r.players}/${r.maxSeats} | 💰${r.seatPrice}$</span>
+                </div>`
+            ).join('');
+        }
+
+        function updateGamesUI(games) {
+            const box = $('adminActiveGames');
+            if (!games || games.length === 0) {
+                box.innerHTML = '<div class="stat-row"><span class="label">لا توجد مباريات نشطة</span></div>';
+                return;
+            }
+
+            box.innerHTML = games.map(g =>
+                `<div class="stat-row">
+                    <span class="label">🏠 ${g.roomId}</span>
+                    <span class="value">👥${g.players?.length || 0} | 💀${g.aliveCount || 0} متبقي | ⏱️${g.duration || 0}s</span>
+                </div>`
+            ).join('');
+        }
+
+        function updateDbStatusUI(data) {
+            const box = $('adminDbStatus');
+            box.innerHTML = `
+                <div class="stat-row"><span class="label">الحالة</span><span class="value ${data.connected ? 'green' : 'red'}">${data.connected ? '✅ متصلة' : '❌ غير متصلة'}</span></div>
+                <div class="stat-row"><span class="label">محاولات إعادة الاتصال</span><span class="value">${data.reconnectAttempts || 0}</span></div>
+                <div class="stat-row"><span class="label">حجم التجمع</span><span class="value">${data.poolSize || 0}</span></div>
+                <div class="stat-row"><span class="label">الاتصالات الخاملة</span><span class="value">${data.idleCount || 0}</span></div>
+                ${data.lastError ? `<div class="stat-row"><span class="label">آخر خطأ</span><span class="value red">${data.lastError}</span></div>` : ''}
+            `;
+        }
+
+        // ============================================
+        // UI EVENTS
+        // ============================================
+        function setupUIListeners() {
+            // ---- LOGIN ----
+            $('adminLoginBtn').addEventListener('click', () => {
+                const password = $('adminPasswordInput').value;
+                if (!password) {
+                    showToast('⚠️ أدخل كلمة المرور', 'warning');
+                    return;
+                }
+                if (state.socket) {
+                    state.socket.emit('admin_login', { password });
+                }
+            });
+
+            $('adminPasswordInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') $('adminLoginBtn').click();
+            });
+
+            // ---- MAINTENANCE TOGGLE ----
+            $('maintenanceToggle').addEventListener('click', function() {
+                this.classList.toggle('active');
+                $('maintenanceLabel').textContent = this.classList.contains('active') ? 'مفعل' : 'معطل';
+                if (state.socket) {
+                    state.socket.emit('admin_command', { command: 'toggle_maintenance' });
+                }
+            });
+
+            // ---- ANTICHEAT TOGGLE ----
+            $('anticheatToggle').addEventListener('click', function() {
+                this.classList.toggle('active');
+                $('anticheatLabel').textContent = this.classList.contains('active') ? 'مفعل' : 'معطل';
+                if (state.socket) {
+                    state.socket.emit('admin_command', { command: 'toggle_anticheat' });
+                }
+            });
+
+            // ---- UPDATE PASSWORD ----
+            $('adminUpdatePassword').addEventListener('click', () => {
+                const newPassword = $('adminPasswordSetting').value.trim();
+                if (!newPassword) {
+                    showToast('⚠️ أدخل كلمة مرور جديدة', 'warning');
+                    return;
+                }
+                if (newPassword.length < 6) {
+                    showToast('⚠️ كلمة المرور يجب أن تكون 6 أحرف على الأقل', 'warning');
+                    return;
+                }
+                if (state.socket) {
+                    state.socket.emit('admin_command', {
+                        command: 'update_config',
+                        params: { section: 'system', key: 'adminPassword', value: newPassword }
+                    });
+                }
+            });
+
+            // ---- ROOM SETTINGS ----
+            document.addEventListener('change', (e) => {
+                if (e.target.classList.contains('room-setting')) {
+                    const t = e.target.dataset.type;
+                    const k = e.target.dataset.key;
+                    const v = parseFloat(e.target.value);
+                    if (!isNaN(v) && state.socket) {
+                        state.socket.emit('admin_command', {
+                            command: 'update_config',
+                            params: { section: 'rooms', key: t, value: { [k]: v } }
+                        });
+                    }
+                }
+            });
+
+            document.addEventListener('click', (e) => {
+                if (e.target.classList.contains('room-toggle')) {
+                    const active = e.target.classList.toggle('active');
+                    const t = e.target.dataset.type;
+                    if (state.socket) {
+                        state.socket.emit('admin_command', {
+                            command: 'update_config',
+                            params: { section: 'rooms', key: t, value: { enabled: active } }
+                        });
+                    }
+                }
+            });
+
+            // ---- VISUAL SETTINGS ----
+            document.addEventListener('click', (e) => {
+                if (e.target.classList.contains('visual-update-btn')) {
+                    const key = e.target.dataset.key;
+                    const url = document.querySelector(`.visual-setting[data-key="${key}"]`)?.value || '';
+                    const alt = document.querySelector(`.visual-setting-alt[data-key="${key}"]`)?.value || '';
+                    if (state.socket) {
+                        state.socket.emit('admin_command', {
+                            command: 'update_visual_setting',
+                            params: { eventKey: key, imageUrl: url, altText: alt }
+                        });
+                    }
+                }
+            });
+
+            // ---- PLAYER MANAGEMENT ----
+            $('adminAddBalance').addEventListener('click', () => {
+                const uid = $('adminTargetUserId').value;
+                const amt = parseFloat($('adminAmount').value);
+                if (!uid || isNaN(amt)) {
+                    showToast('⚠️ أدخل المعرف والمبلغ', 'warning');
+                    return;
+                }
+                if (state.socket) {
+                    state.socket.emit('admin_command', {
+                        command: 'set_balance',
+                        params: { userId: uid, amount: amt, action: 'add' }
+                    });
+                }
+            });
+
+            $('adminSubtractBalance').addEventListener('click', () => {
+                const uid = $('adminTargetUserId').value;
+                const amt = parseFloat($('adminAmount').value);
+                if (!uid || isNaN(amt)) {
+                    showToast('⚠️ أدخل المعرف والمبلغ', 'warning');
+                    return;
+                }
+                if (state.socket) {
+                    state.socket.emit('admin_command', {
+                        command: 'set_balance',
+                        params: { userId: uid, amount: amt, action: 'subtract' }
+                    });
+                }
+            });
+
+            $('adminKickPlayer').addEventListener('click', () => {
+                const uid = $('adminTargetUserId').value;
+                if (!uid) {
+                    showToast('⚠️ أدخل المعرف', 'warning');
+                    return;
+                }
+                if (confirm(`طرد اللاعب ${uid}؟`)) {
+                    if (state.socket) {
+                        state.socket.emit('admin_command', {
+                            command: 'kick_player',
+                            params: { userId: uid, reason: 'تم طردك بواسطة المدير' }
+                        });
+                    }
+                }
+            });
+
+            $('adminBanPlayer').addEventListener('click', () => {
+                const uid = $('adminTargetUserId').value;
+                if (!uid) {
+                    showToast('⚠️ أدخل المعرف', 'warning');
+                    return;
+                }
+                if (confirm(`حظر اللاعب ${uid} نهائياً؟`)) {
+                    if (state.socket) {
+                        state.socket.emit('admin_command', {
+                            command: 'ban_player',
+                            params: { userId: uid, duration: 24 * 60 * 60 * 1000, reason: 'تم حظرك بواسطة المدير' }
+                        });
+                    }
+                }
+            });
+
+            $('adminSetAdmin').addEventListener('click', () => {
+                const uid = $('adminTargetUserId').value;
+                if (!uid) {
+                    showToast('⚠️ أدخل المعرف', 'warning');
+                    return;
+                }
+                const isAdmin = confirm(`ترقية اللاعب ${uid} إلى مدير؟`);
+                if (state.socket) {
+                    state.socket.emit('admin_command', {
+                        command: 'set_admin',
+                        params: { targetUserId: uid, isAdmin: isAdmin }
+                    });
+                }
+            });
+
+            // ---- REFRESH BUTTONS ----
+            $('adminRefreshStats').addEventListener('click', () => {
+                if (state.socket) {
+                    state.socket.emit('admin_command', { command: 'get_stats' });
+                    state.socket.emit('admin_command', { command: 'get_monitoring' });
+                    showToast('🔄 تحديث الإحصائيات...', 'info');
+                }
+            });
+
+            $('adminRefreshPlayers').addEventListener('click', () => {
+                if (state.socket) {
+                    state.socket.emit('admin_command', { command: 'get_players' });
+                    showToast('🔄 تحديث اللاعبين...', 'info');
+                }
+            });
+
+            $('adminRefreshRooms').addEventListener('click', () => {
+                if (state.socket) {
+                    state.socket.emit('admin_command', { command: 'get_rooms' });
+                    showToast('🔄 تحديث الغرف...', 'info');
+                }
+            });
+
+            $('adminRefreshGames').addEventListener('click', () => {
+                if (state.socket) {
+                    state.socket.emit('admin_command', { command: 'get_active_games' });
+                    showToast('🔄 تحديث المباريات...', 'info');
+                }
+            });
+
+            // ---- DATABASE ----
+            $('adminDbHealth').addEventListener('click', () => {
+                if (state.socket) {
+                    state.socket.emit('admin_command', { command: 'get_database_health' });
+                }
+            });
+
+            $('adminForceReconnect').addEventListener('click', () => {
+                if (state.socket) {
+                    state.socket.emit('admin_command', { command: 'force_reconnect_db' });
+                }
+            });
+
+            // ---- DANGER ZONE ----
+            $('adminResetConfig').addEventListener('click', () => {
+                if (confirm('⚠️ إعادة تعيين جميع الإعدادات إلى الوضع الافتراضي؟')) {
+                    if (state.socket) {
+                        state.socket.emit('admin_command', { command: 'reset_config' });
+                    }
+                }
+            });
+
+            $('adminResetData').addEventListener('click', () => {
+                if (confirm('⚠️ تحذير: سيتم مسح جميع بيانات اللاعبين نهائياً! هل أنت متأكد؟')) {
+                    if (confirm('تأكيد نهائي: اكتب "مسح" في المربع أدناه')) {
+                        const confirmText = prompt('اكتب "مسح" للتأكيد النهائي');
+                        if (confirmText === 'مسح') {
+                            if (state.socket) {
+                                state.socket.emit('admin_command', { command: 'reset_data' });
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ============================================
+        // INIT
+        // ============================================
+        async function initAdmin() {
+            try {
+                // محاولة استعادة كلمة المرور المحفوظة
+                const savedPassword = localStorage.getItem('adminPassword');
+                if (savedPassword) {
+                    $('adminPasswordInput').value = savedPassword;
+                }
+
+                await connectSocket();
+                setupSocketEvents();
+                setupUIListeners();
+
+                // محاولة تسجيل الدخول التلقائي
+                if (savedPassword) {
+                    setTimeout(() => {
+                        if (state.socket && !state.isLoggedIn) {
+                            state.socket.emit('admin_login', { password: savedPassword });
+                        }
+                    }, 1000);
+                }
+
+                // تحديث الحالة كل 30 ثانية
+                setInterval(() => {
+                    if (state.isLoggedIn && state.socket) {
+                        state.socket.emit('admin_command', { command: 'get_monitoring' });
+                        state.socket.emit('admin_command', { command: 'get_stats' });
+                    }
+                }, 30000);
+
+            } catch (e) {
+                console.error('❌ Admin init error:', e);
+                showToast('❌ فشل الاتصال بالخادم', 'error');
+            }
+        }
+
+        // ============================================
+        // START
+        // ============================================
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🔐 Starting Admin Panel...');
+            initAdmin();
+        });
+
+        // ---- NETWORK ----
+        window.addEventListener('online', () => {
+            if (!state.socket || !state.socket.connected) {
+                showToast('🔄 تم استعادة الإنترنت، جاري إعادة الاتصال...', 'info');
+                connectSocket().then(() => {
+                    if (state.isLoggedIn) {
+                        const password = localStorage.getItem('adminPassword');
+                        if (password && state.socket) {
+                            state.socket.emit('admin_login', { password });
+                        }
+                    }
+                }).catch(() => showToast('❌ فشل إعادة الاتصال', 'error'));
+            }
+        });
+
+        window.addEventListener('offline', () => {
+            showToast('⚠️ انقطع الاتصال بالإنترنت', 'warning');
+        });
+
+        console.log('🔐 Admin Panel loaded successfully');
+    </script>
+
+</body>
+</html>

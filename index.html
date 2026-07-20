@@ -7,9 +7,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        /* ===== RESET & BASE ===== */
+        /* ============================================
+           🎯 STYLES - INDEX
+           ============================================ */
         * {
             margin: 0;
             padding: 0;
@@ -819,553 +820,6 @@
             font-weight: 700;
         }
 
-        /* ===== GAME OVERLAY ===== */
-        .game-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1000;
-            display: none;
-            background: #0a0f1a;
-        }
-
-        .game-overlay.active {
-            display: block;
-        }
-
-        .game-overlay canvas {
-            width: 100% !important;
-            height: 100% !important;
-            display: block;
-        }
-
-        .game-hud {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-
-        .hud-top {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 12px;
-            background: linear-gradient(180deg, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
-        }
-
-        .hud-left {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-
-        .hud-left .pname {
-            font-size: 13px;
-            font-weight: 600;
-            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-        }
-
-        .hud-left .pbalance {
-            font-size: 11px;
-            color: var(--primary);
-            font-weight: 600;
-        }
-
-        .hud-health {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .hud-health .bar {
-            width: 80px;
-            height: 6px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        .hud-health .bar .fill {
-            height: 100%;
-            background: linear-gradient(90deg, #e74c3c, #2ecc71);
-            border-radius: 4px;
-            transition: width 0.3s;
-        }
-
-        .hud-health .text {
-            font-size: 13px;
-            font-weight: 700;
-            min-width: 24px;
-            text-align: center;
-        }
-
-        .hud-right {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 2px;
-        }
-
-        .hud-right .alive {
-            font-size: 13px;
-            font-weight: 700;
-            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-        }
-
-        .hud-right .alive span {
-            color: var(--primary);
-        }
-
-        .hud-right .kills {
-            font-size: 11px;
-            color: var(--text-muted);
-        }
-
-        .hud-right .kills span {
-            color: #e74c3c;
-            font-weight: 700;
-        }
-
-        .hud-right .round {
-            font-size: 10px;
-            color: var(--text-muted);
-        }
-
-        .kill-feed {
-            position: absolute;
-            top: 70px;
-            right: 10px;
-            pointer-events: none;
-            max-width: 180px;
-        }
-
-        .kill-feed .item {
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(8px);
-            padding: 4px 10px;
-            border-radius: 6px;
-            margin-bottom: 4px;
-            font-size: 11px;
-            animation: kfIn 0.4s ease, kfOut 0.4s ease 2.6s forwards;
-            border-right: 3px solid #e74c3c;
-        }
-
-        .kill-feed .item .k {
-            color: #2ecc71;
-            font-weight: 600;
-        }
-        .kill-feed .item .t {
-            color: #e74c3c;
-            font-weight: 600;
-        }
-
-        @keyframes kfIn {
-            0% {
-                opacity: 0;
-                transform: translateX(20px);
-            }
-            100% {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-
-        @keyframes kfOut {
-            0% {
-                opacity: 1;
-            }
-            100% {
-                opacity: 0;
-                transform: translateX(20px);
-            }
-        }
-
-        .hud-controls {
-            position: absolute;
-            bottom: 30px;
-            left: 0;
-            right: 0;
-            display: flex;
-            justify-content: space-between;
-            padding: 0 16px;
-            pointer-events: none;
-        }
-
-        .joystick-area {
-            width: clamp(90px, 22vw, 130px);
-            height: clamp(90px, 22vw, 130px);
-            pointer-events: auto;
-            position: relative;
-        }
-
-        .joystick-base {
-            width: 100%;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.06);
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
-            position: relative;
-            backdrop-filter: blur(8px);
-        }
-
-        .joystick-handle {
-            width: clamp(36px, 9vw, 50px);
-            height: clamp(36px, 9vw, 50px);
-            background: radial-gradient(circle, var(--primary-light), var(--primary-dark));
-            border-radius: 50%;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            pointer-events: none;
-            box-shadow: 0 0 30px rgba(212, 175, 55, 0.2);
-        }
-
-        .fire-btn {
-            width: clamp(65px, 16vw, 80px);
-            height: clamp(65px, 16vw, 80px);
-            background: radial-gradient(circle, #e74c3c, #c0392b);
-            border: 3px solid rgba(255, 255, 255, 0.15);
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: clamp(24px, 5vw, 32px);
-            color: #fff;
-            cursor: pointer;
-            pointer-events: auto;
-            box-shadow: 0 0 40px rgba(231, 76, 60, 0.3);
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        .fire-btn:active {
-            transform: scale(0.92);
-        }
-
-        .fire-btn .cd {
-            position: absolute;
-            font-size: 10px;
-            font-weight: 700;
-        }
-
-        /* ===== ELIMINATION ===== */
-        .elimination-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(12px);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 2000;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .elimination-overlay.active {
-            display: flex;
-        }
-
-        .elimination-overlay .icon {
-            font-size: 64px;
-        }
-        .elimination-overlay .title {
-            font-size: 28px;
-            font-weight: 900;
-            color: #e74c3c;
-        }
-        .elimination-overlay .subtitle {
-            color: var(--text-muted);
-            font-size: 16px;
-        }
-        .elimination-overlay .timer {
-            font-size: 48px;
-            font-weight: 900;
-            color: var(--primary);
-        }
-
-        /* ===== REPORT ===== */
-        .report-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.92);
-            backdrop-filter: blur(16px);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 3000;
-            padding: 20px;
-        }
-
-        .report-overlay.active {
-            display: flex;
-        }
-
-        .report-box {
-            background: var(--bg-card);
-            padding: 24px;
-            border-radius: var(--radius);
-            max-width: 380px;
-            width: 100%;
-            text-align: center;
-            border: 1px solid rgba(212, 175, 55, 0.15);
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-
-        .report-box .icon {
-            font-size: 56px;
-        }
-        .report-box .title {
-            font-size: 22px;
-            font-weight: 900;
-            color: var(--primary);
-        }
-        .report-box .subtitle {
-            color: var(--text-muted);
-            font-size: 14px;
-            margin-bottom: 14px;
-        }
-
-        .report-stats {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            margin: 14px 0;
-        }
-
-        .report-stat {
-            background: rgba(255, 255, 255, 0.05);
-            padding: 10px;
-            border-radius: 10px;
-        }
-
-        .report-stat .value {
-            font-size: 20px;
-            font-weight: 800;
-            color: var(--primary);
-        }
-        .report-stat .label {
-            font-size: 10px;
-            color: var(--text-muted);
-        }
-
-        .report-btn {
-            width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
-            border: none;
-            border-radius: 50px;
-            color: #fff;
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-            margin-top: 8px;
-            transition: transform 0.2s;
-        }
-
-        .report-btn:active {
-            transform: scale(0.96);
-        }
-        .report-btn.secondary {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        /* ===== ADMIN ===== */
-        #adminPanel {
-            z-index: 5000;
-            background: rgba(0, 0, 0, 0.97);
-            backdrop-filter: blur(20px);
-            padding: 16px;
-            overflow-y: auto;
-            padding-top: var(--header-height);
-            padding-bottom: 20px;
-        }
-
-        .admin-box {
-            max-width: 650px;
-            margin: 0 auto;
-        }
-
-        .admin-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 16px;
-            background: var(--bg-card);
-            border-radius: var(--radius);
-            margin-bottom: 14px;
-        }
-
-        .admin-header h2 {
-            color: var(--primary);
-            font-size: 18px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .admin-close {
-            padding: 6px 14px;
-            background: rgba(231, 76, 60, 0.2);
-            border: 1px solid rgba(231, 76, 60, 0.3);
-            border-radius: 30px;
-            color: #e74c3c;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 13px;
-        }
-
-        .admin-section {
-            background: var(--bg-card);
-            padding: 14px;
-            border-radius: var(--radius);
-            margin-bottom: 10px;
-        }
-
-        .admin-section h3 {
-            color: var(--primary);
-            font-size: 15px;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .admin-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-            gap: 8px;
-        }
-
-        .admin-input {
-            width: 100%;
-            padding: 8px 12px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 10px;
-            color: #fff;
-            font-size: 13px;
-            font-family: 'Cairo', sans-serif;
-        }
-
-        .admin-input:focus {
-            outline: none;
-            border-color: var(--primary);
-        }
-        .admin-input::placeholder {
-            color: var(--text-muted);
-        }
-
-        .admin-label {
-            font-size: 11px;
-            color: var(--text-muted);
-            display: block;
-            margin-bottom: 4px;
-        }
-
-        .admin-btn {
-            padding: 8px 14px;
-            border: none;
-            border-radius: 10px;
-            font-weight: 600;
-            cursor: pointer;
-            font-family: 'Cairo', sans-serif;
-            font-size: 13px;
-            color: #fff;
-            transition: transform 0.2s;
-            width: 100%;
-        }
-
-        .admin-btn:active {
-            transform: scale(0.96);
-        }
-        .admin-btn.primary {
-            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
-        }
-        .admin-btn.danger {
-            background: linear-gradient(135deg, #c0392b, #e74c3c);
-        }
-        .admin-btn.success {
-            background: linear-gradient(135deg, #27ae60, #2ecc71);
-        }
-
-        .admin-toggle {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 6px 10px;
-            background: rgba(255, 255, 255, 0.04);
-            border-radius: 10px;
-        }
-
-        .admin-toggle .switch {
-            width: 38px;
-            height: 20px;
-            background: rgba(255, 255, 255, 0.15);
-            border-radius: 10px;
-            cursor: pointer;
-            transition: 0.3s;
-            position: relative;
-        }
-
-        .admin-toggle .switch.active {
-            background: var(--primary);
-        }
-
-        .admin-toggle .switch::after {
-            content: '';
-            position: absolute;
-            top: 2px;
-            left: 2px;
-            width: 16px;
-            height: 16px;
-            background: #fff;
-            border-radius: 50%;
-            transition: 0.3s;
-        }
-
-        .admin-toggle .switch.active::after {
-            left: 20px;
-        }
-
-        .admin-stats {
-            background: rgba(0, 0, 0, 0.3);
-            padding: 10px;
-            border-radius: 10px;
-            font-size: 12px;
-            line-height: 1.8;
-            font-family: monospace;
-            max-height: 180px;
-            overflow-y: auto;
-        }
-
-        .admin-password-input {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-
-        .admin-password-input input {
-            flex: 1;
-        }
-
-        .admin-password-input button {
-            width: auto;
-            padding: 8px 16px;
-        }
-
         /* ===== LANDSCAPE WARNING ===== */
         .landscape-warning {
             position: fixed;
@@ -1454,17 +908,11 @@
             .seats-actions {
                 grid-template-columns: 1fr;
             }
-            .admin-grid {
-                grid-template-columns: 1fr;
-            }
             .stats-grid {
                 grid-template-columns: 1fr 1fr;
             }
             .profile-stats {
                 grid-template-columns: 1fr 1fr;
-            }
-            .hud-health .bar {
-                width: 60px;
             }
             .top-header .brand {
                 font-size: 15px;
@@ -1634,150 +1082,17 @@
         <button class="nav-item" data-screen="profileScreen">
             <i class="fas fa-user"></i><span>ملفي</span>
         </button>
-        <button class="nav-item admin-nav" id="adminNavBtn" style="display:none;">
+        <button class="nav-item admin-nav" id="adminNavBtn" style="display:none;" onclick="window.location.href='admin.html'">
             <i class="fas fa-cog"></i><span>إدارة</span>
         </button>
     </nav>
 
-    <!-- ===== GAME ===== -->
-    <div class="game-overlay" id="gameOverlay">
-        <canvas id="gameCanvas"></canvas>
-        <div class="game-hud">
-            <div class="hud-top">
-                <div class="hud-left">
-                    <div class="pname" id="gPlayerName">اللاعب</div>
-                    <div class="pbalance">💰 <span id="gBalance">0</span>$</div>
-                    <div class="hud-health">
-                        <span>❤️</span>
-                        <div class="bar"><div class="fill" id="healthBar" style="width:100%"></div></div>
-                        <span class="text" id="healthText">100</span>
-                    </div>
-                </div>
-                <div class="hud-right">
-                    <div class="alive">👥 <span id="aliveCount">0</span> متبقي</div>
-                    <div class="kills">💀 إقصاءات: <span id="killCount">0</span></div>
-                    <div class="round">🏆 الجولة <span id="gameRound">1</span></div>
-                </div>
-            </div>
-            <div class="kill-feed" id="killFeed"></div>
-            <div class="hud-controls">
-                <div class="joystick-area">
-                    <div class="joystick-base" id="joystickBase">
-                        <div class="joystick-handle" id="joystickHandle"></div>
-                    </div>
-                </div>
-                <div class="fire-btn" id="fireBtn">💥<span class="cd" id="cooldownText"></span></div>
-            </div>
-        </div>
-    </div>
+    <!-- ===== GAME LAUNCHER (يتم تحميله عند بدء اللعبة) ===== -->
+    <div id="gameContainer" style="display:none;"></div>
 
-    <!-- ===== ELIMINATION ===== -->
-    <div class="elimination-overlay" id="eliminationOverlay">
-        <div class="icon">💀</div>
-        <div class="title">تم إقصاؤك!</div>
-        <div class="subtitle">سيتم إحياؤك قريباً</div>
-        <div class="timer" id="respawnTimer">5</div>
-    </div>
-
-    <!-- ===== REPORT ===== -->
-    <div class="report-overlay" id="reportOverlay">
-        <div class="report-box">
-            <div class="icon" id="rIcon">🏆</div>
-            <div class="title" id="rTitle">انتهت المعركة!</div>
-            <div class="subtitle" id="rSubtitle">شكراً للمشاركة</div>
-            <div class="report-stats">
-                <div class="report-stat"><div class="value" id="rKills">0</div><div class="label">💀 إقصاءات</div></div>
-                <div class="report-stat"><div class="value" id="rReward">0</div><div class="label">💰 المكافأة</div></div>
-                <div class="report-stat"><div class="value" id="rDuration">0</div><div class="label">⏱️ المدة</div></div>
-                <div class="report-stat"><div class="value" id="rPlace">#1</div><div class="label">🏆 الترتيب</div></div>
-            </div>
-            <div id="rKillFeed" style="background:rgba(0,0,0,0.3);border-radius:10px;padding:10px;margin:10px 0;max-height:100px;overflow-y:auto;text-align:right;font-size:12px;">
-                <div class="text-muted text-center">لا توجد إقصاءات</div>
-            </div>
-            <button class="report-btn" id="playAgainBtn">🎮 العب مرة أخرى</button>
-            <button class="report-btn secondary" id="homeFromReportBtn">🏠 العودة للرئيسية</button>
-        </div>
-    </div>
-
-    <!-- ===== ADMIN ===== -->
-    <div id="adminPanel" class="screen">
-        <div class="admin-box">
-            <div class="admin-header">
-                <h2><i class="fas fa-cog"></i> لوحة التحكم</h2>
-                <button class="admin-close" id="closeAdmin">✕ إغلاق</button>
-            </div>
-            <div class="admin-section">
-                <h3><i class="fas fa-lock"></i> المصادقة الإدارية</h3>
-                <div class="admin-password-input">
-                    <input class="admin-input" id="adminPasswordInput" type="password" placeholder="كلمة المرور">
-                    <button class="admin-btn primary" id="adminLoginBtn">دخول</button>
-                </div>
-                <div id="adminLoginStatus" class="text-muted" style="margin-top:6px;font-size:12px;"></div>
-            </div>
-            <div id="adminContent" style="display:none;">
-                <div class="admin-section">
-                    <h3><i class="fas fa-server"></i> حالة الخادم</h3>
-                    <div class="admin-stats" id="adminMonitoring">جاري التحميل...</div>
-                </div>
-                <div class="admin-section">
-                    <h3><i class="fas fa-sliders-h"></i> إعدادات الخادم</h3>
-                    <div class="admin-grid">
-                        <div>
-                            <label class="admin-label">وضع الصيانة</label>
-                            <div class="admin-toggle">
-                                <span id="maintenanceLabel">معطل</span>
-                                <div class="switch" id="maintenanceToggle"></div>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="admin-label">نظام الحماية</label>
-                            <div class="admin-toggle">
-                                <span id="anticheatLabel">مفعل</span>
-                                <div class="switch active" id="anticheatToggle"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="admin-section">
-                    <h3><i class="fas fa-door-open"></i> إعدادات الغرف</h3>
-                    <div class="admin-grid" id="roomSettingsGrid"></div>
-                </div>
-                <div class="admin-section">
-                    <h3><i class="fas fa-image"></i> الإعدادات البصرية</h3>
-                    <div class="admin-grid" id="visualSettingsGrid"></div>
-                </div>
-                <div class="admin-section">
-                    <h3><i class="fas fa-users-cog"></i> إدارة اللاعبين</h3>
-                    <div class="admin-grid">
-                        <div><label class="admin-label">معرف اللاعب</label><input class="admin-input" id="adminTargetUserId" placeholder="أدخل المعرف"></div>
-                        <div><label class="admin-label">المبلغ</label><input class="admin-input" id="adminAmount" type="number" placeholder="المبلغ"></div>
-                        <button class="admin-btn success" id="adminAddBalance">➕ إضافة رصيد</button>
-                        <button class="admin-btn danger" id="adminSubtractBalance">➖ سحب رصيد</button>
-                        <button class="admin-btn danger" id="adminKickPlayer">🚫 طرد لاعب</button>
-                        <button class="admin-btn danger" id="adminBanPlayer">⛔ حظر لاعب</button>
-                    </div>
-                </div>
-                <div class="admin-section">
-                    <h3><i class="fas fa-chart-bar"></i> إحصائيات</h3>
-                    <button class="admin-btn primary" id="adminRefreshStats">🔄 تحديث</button>
-                    <div class="admin-stats" id="adminStats" style="margin-top:8px;">جاري التحميل...</div>
-                </div>
-                <div class="admin-section">
-                    <h3><i class="fas fa-database"></i> قاعدة البيانات</h3>
-                    <div class="admin-grid">
-                        <button class="admin-btn primary" id="adminDbHealth">🔍 فحص</button>
-                        <button class="admin-btn danger" id="adminForceReconnect">🔄 إعادة اتصال</button>
-                    </div>
-                    <div class="admin-stats" id="adminDbStatus" style="margin-top:8px;">جاري التحميل...</div>
-                </div>
-                <div class="admin-section" style="border-color:rgba(231,76,60,0.3);">
-                    <h3 style="color:#e74c3c;"><i class="fas fa-exclamation-triangle"></i> منطقة الخطر</h3>
-                    <button class="admin-btn danger" id="adminResetConfig">🔄 إعادة تعيين الإعدادات</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
+    <!-- ============================================================ -->
+    <!-- ========== JAVASCRIPT ========== -->
+    <!-- ============================================================ -->
     <script>
         // ============================================
         // CONFIG
@@ -1787,7 +1102,7 @@
             ADMIN_ID: '7011476249'
         };
 
-        console.log('🎮 Battle Tanks Royale v6.0.0');
+        console.log('🎮 Battle Tanks Royale v7.0.0');
         console.log('📡 Server:', CONFIG.SERVER_URL);
 
         // ============================================
@@ -1804,24 +1119,17 @@
             isAdmin: false,
             roomId: null,
             gameActive: false,
-            isEliminated: false,
-            aliveCount: 0,
-            killCount: 0,
-            gameRound: 0,
+            isInGame: false,
             socket: null,
             isAuthenticated: false,
             roomJoined: false,
             gameStarting: false,
             isInSeatsScreen: false,
-            adminLoggedIn: false,
             currentRoomData: null,
             leaderboard: []
         };
 
         let socket = null;
-        let gameScene = null;
-        let joystickActive = false;
-        let moveInterval = null;
 
         // ============================================
         // DOM HELPERS
@@ -1832,7 +1140,6 @@
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             const el = $(id);
             if (el) el.classList.add('active');
-            // تحديث التنقل السفلي
             document.querySelectorAll('.bottom-nav .nav-item').forEach(item => {
                 item.classList.toggle('active', item.dataset.screen === id);
             });
@@ -1970,7 +1277,6 @@
                 state.isAdmin = data.isAdmin || false;
                 state.isAuthenticated = true;
 
-                // تحديث الواجهة
                 updateHeaderUI();
                 updateStatsUI(data);
                 updateProfileUI(data);
@@ -1983,7 +1289,6 @@
                 showScreen('mainScreen');
                 showToast('👋 مرحباً ' + state.username, 'success');
 
-                // طلب الإحصائيات والرصيد
                 socket.emit('get_stats');
                 socket.emit('get_leaderboard');
                 socket.emit('join_lobby');
@@ -2015,7 +1320,6 @@
                 if (data.balance !== undefined) state.balance = data.balance;
                 if (data.elo !== undefined) state.elo = data.elo;
                 updateHeaderUI();
-                updateStatsUI({ balance: state.balance, elo: state.elo, kills: state.kills, wins: state.wins });
             });
 
             socket.on('rooms_list', (data) => {
@@ -2075,144 +1379,15 @@
                 state.gameStarting = false;
                 state.roomJoined = false;
                 state.isInSeatsScreen = false;
+                state.isInGame = true;
 
-                if (window.innerHeight > window.innerWidth) {
-                    $('landscapeWarning').style.display = 'flex';
-                    const check = setInterval(() => {
-                        if (window.innerWidth > window.innerHeight) {
-                            clearInterval(check);
-                            $('landscapeWarning').style.display = 'none';
-                            startGame(data);
-                        }
-                    }, 200);
-                    setTimeout(() => {
-                        clearInterval(check);
-                        $('landscapeWarning').style.display = 'none';
-                        startGame(data);
-                    }, 5000);
-                } else {
-                    startGame(data);
-                }
-            });
-
-            socket.on('player_moved', (data) => {
-                if (gameScene && gameScene.gameActive && data.userId !== state.userId) {
-                    const target = new THREE.Vector3(data.position.x, 0, data.position.z);
-                    gameScene.targetPositions.set(data.userId, target);
-                    const tank = gameScene.tanks.get(data.userId);
-                    if (tank && data.rotation !== undefined) {
-                        tank.rotation.y += (data.rotation - tank.rotation.y) * 0.2;
-                    }
-                }
-            });
-
-            socket.on('player_shot', (data) => {
-                if (gameScene && gameScene.gameActive) {
-                    const pos = new THREE.Vector3(data.position.x, data.position.y || 0, data.position.z);
-                    const dir = new THREE.Vector3(data.direction.x, data.direction.y || 0, data.direction.z);
-                    gameScene.createBullet(pos, dir, data.userId);
-                }
-            });
-
-            socket.on('player_eliminated', (data) => {
-                if (gameScene && gameScene.gameActive) {
-                    const tank = gameScene.tanks.get(data.userId);
-                    if (tank) {
-                        gameScene.createExplosion(tank.position, 2.0);
-                        gameScene.scene.remove(tank);
-                        gameScene.tanks.delete(data.userId);
-                        gameScene.targetPositions.delete(data.userId);
-                    }
-                    state.aliveCount = data.aliveCount || state.aliveCount - 1;
-                    $('aliveCount').textContent = state.aliveCount;
-
-                    const feed = $('killFeed');
-                    const item = document.createElement('div');
-                    item.className = 'item';
-                    const k = data.killerId === state.userId ? 'أنت' : 'لاعب';
-                    const t = data.userId === state.userId ? 'أنت' : 'لاعب';
-                    item.innerHTML = `<span class="k">${k}</span> 💥 أقصى <span class="t">${t}</span>`;
-                    feed.prepend(item);
-                    setTimeout(() => item.remove(), 3000);
-                }
-            });
-
-            socket.on('you_were_eliminated', () => {
-                state.isEliminated = true;
-                state.gameActive = false;
-                $('eliminationOverlay').classList.add('active');
-                $('respawnTimer').textContent = '5';
-                if (gameScene) gameScene.cameraShake = 1.5;
-
-                let count = 5;
-                const timer = setInterval(() => {
-                    count--;
-                    if (count <= 0) {
-                        clearInterval(timer);
-                        $('eliminationOverlay').classList.remove('active');
-                        state.isEliminated = false;
-                        state.gameActive = true;
-                        showToast('🔄 تم إحياؤك!', 'success');
-                    } else {
-                        $('respawnTimer').textContent = count;
-                    }
-                }, 1000);
-            });
-
-            socket.on('player_respawned', (data) => {
-                if (gameScene && gameScene.gameActive && data.userId !== state.userId) {
-                    const tank = gameScene.tanks.get(data.userId);
-                    const pos = new THREE.Vector3(data.position.x, 0, data.position.z);
-                    if (tank) {
-                        tank.position.copy(pos);
-                        gameScene.targetPositions.set(data.userId, pos.clone());
-                    } else {
-                        const colors = [0x8b5a2b, 0x6a4a8b, 0x8b2b3a, 0x2b6a8b];
-                        const color = colors[Math.floor(Math.random() * colors.length)];
-                        const newTank = gameScene.createTank(color, pos.x, pos.z, data.userId);
-                        gameScene.tanks.set(data.userId, newTank);
-                        gameScene.targetPositions.set(data.userId, pos.clone());
-                    }
-                }
-            });
-
-            socket.on('health_update', (data) => {
-                if (data.userId === state.userId) {
-                    $('healthBar').style.width = data.health + '%';
-                    $('healthText').textContent = data.health;
-                    if (data.damage > 0 && gameScene) {
-                        gameScene.cameraShake = Math.min(1, data.damage / 100);
-                    }
-                }
-            });
-
-            socket.on('alive_count_update', (data) => {
-                state.aliveCount = data.alive;
-                $('aliveCount').textContent = data.alive;
-            });
-
-            socket.on('kill_feed_update', (data) => {
-                const feed = $('killFeed');
-                feed.innerHTML = '';
-                (data.kills || []).forEach(kill => {
-                    const item = document.createElement('div');
-                    item.className = 'item';
-                    item.innerHTML =
-                        `<span class="k">${kill.killer || 'لاعب'}</span> 💥 أقصى <span class="t">${kill.target || 'لاعب'}</span>`;
-                    feed.appendChild(item);
-                    setTimeout(() => item.remove(), 3000);
-                });
+                // تحميل اللعبة وتشغيلها
+                loadGameAndStart(data);
             });
 
             socket.on('balance_update', (data) => {
                 state.balance = data.balance || 0;
                 updateHeaderUI();
-                $('gBalance').textContent = state.balance;
-                $('pBalance').textContent = state.balance;
-                if (data.kills !== undefined) {
-                    state.killCount = data.kills;
-                    $('killCount').textContent = data.kills;
-                }
                 if (data.reward) showToast(`💰 +${data.reward}$ ${data.reason || ''}`, 'success');
                 if (data.elo) {
                     state.elo = data.elo;
@@ -2221,36 +1396,6 @@
                     $('sRank').textContent = rank.rank;
                     $('sRank').style.color = rank.color;
                 }
-            });
-
-            socket.on('game_ended', (data) => {
-                state.gameActive = false;
-                if (gameScene) gameScene.gameActive = false;
-
-                const isWinner = data.winner === state.userId;
-                $('rIcon').textContent = isWinner ? '🏆' : '💪';
-                $('rTitle').textContent = isWinner ? '🎉 أنت الفائز!' : 'انتهت المعركة!';
-                $('rSubtitle').textContent = `جولة #${state.gameRound}`;
-                $('rKills').textContent = state.killCount || 0;
-                $('rReward').textContent = data.winReward || 0;
-                $('rDuration').textContent = data.duration || 0;
-                $('rPlace').textContent = isWinner ? '#1' : `#${data.totalPlayers || 0}`;
-
-                const feedContainer = $('rKillFeed');
-                if (data.killFeed && data.killFeed.length > 0) {
-                    feedContainer.innerHTML = data.killFeed.map(k =>
-                        `<div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
-                            <span style="color:#2ecc71;">${k.killer || 'لاعب'}</span> 💥 أقصى <span style="color:#e74c3c;">${k.target || 'لاعب'}</span>
-                        </div>`
-                    ).join('');
-                } else {
-                    feedContainer.innerHTML = '<div class="text-muted text-center">لا توجد إقصاءات</div>';
-                }
-
-                $('gameOverlay').classList.remove('active');
-                $('reportOverlay').classList.add('active');
-
-                if (isWinner) showToast('🎉 مبروك! أنت الفائز!', 'success');
             });
 
             // ---- STATS ----
@@ -2270,66 +1415,6 @@
                 renderLeaderboard(state.leaderboard);
             });
 
-            // ---- ADMIN ----
-            socket.on('admin_login_success', (data) => {
-                state.adminLoggedIn = true;
-                showToast('✅ ' + data.message, 'success');
-                $('adminLoginStatus').textContent = '✅ تم تسجيل الدخول';
-                $('adminLoginStatus').style.color = '#2ecc71';
-                $('adminContent').style.display = 'block';
-                loadAdminPanel();
-            });
-
-            socket.on('admin_error', (data) => {
-                showToast('❌ ' + data.message, 'error');
-                $('adminLoginStatus').textContent = '❌ ' + data.message;
-                $('adminLoginStatus').style.color = '#e74c3c';
-            });
-
-            socket.on('admin_config', (data) => {
-                updateAdminUI(data);
-            });
-
-            socket.on('admin_visual_settings', (data) => {
-                updateVisualUI(data);
-            });
-
-            socket.on('admin_monitoring', (data) => {
-                const box = $('adminMonitoring');
-                box.innerHTML = `
-                    👥 متصلون: ${data.monitoring?.connections?.active || 0}<br>
-                    🎮 مباريات: ${data.monitoring?.games?.active || 0}<br>
-                    🔒 أقفال: ${data.locks?.activeLocks || 0}<br>
-                    📋 طابور: ${data.queue?.queueLength || 0}<br>
-                    🛡️ محظورين: ${data.antiCheat?.bannedUsers || 0}<br>
-                    🗄️ قاعدة البيانات: ${data.database?.connected ? '✅ متصلة' : '❌ غير متصلة'}<br>
-                    ⏱️ وقت التشغيل: ${data.monitoring?.uptimeFormatted || '0s'}
-                `;
-            });
-
-            socket.on('admin_stats', (data) => {
-                const box = $('adminStats');
-                if (data.stats) {
-                    box.innerHTML = `
-                        👥 إجمالي اللاعبين: ${data.stats.totalUsers || 0}<br>
-                        💰 إجمالي الأرصدة: ${data.stats.totalBalance || 0}$<br>
-                        🎮 إجمالي المباريات: ${data.stats.totalGames || 0}<br>
-                        🏆 إجمالي الانتصارات: ${data.stats.totalWins || 0}<br>
-                        💀 إجمالي الإقصاءات: ${data.stats.totalKills || 0}<br>
-                        ⭐ متوسط التصنيف: ${data.stats.averageELO || 0}<br>
-                        🚫 محظورين: ${data.stats.bannedUsers || 0}<br>
-                        👥 متصلون: ${data.stats.onlinePlayers || 0}<br>
-                        <hr>
-                        🏆 أفضل اللاعبين:<br>
-                        ${(data.stats.topPlayers || []).map(p =>
-                            `👤 ${p.username || 'لاعب'} | ⭐ ${p.elo} | 💀 ${p.kills} | 🏆 ${p.wins}`
-                        ).join('<br>')}
-                    `;
-                }
-            });
-
-            socket.on('admin_message', (data) => showToast(data.message, data.type || 'info'));
-
             // ---- ERRORS ----
             socket.on('error', (data) => showToast('❌ ' + data.message, 'error'));
             socket.on('kicked', (data) => {
@@ -2340,6 +1425,48 @@
                 showToast('⛔ ' + (data.reason || 'تم حظرك'), 'error');
                 exitGame();
             });
+        }
+
+        // ============================================
+        // LOAD GAME
+        // ============================================
+        function loadGameAndStart(data) {
+            // إظهار مؤقت التحميل
+            showToast('🎮 جاري تحميل المعركة...', 'info');
+
+            // تحميل ملف اللعبة ديناميكياً
+            const script = document.createElement('script');
+            script.src = 'game.js';
+            script.onload = function() {
+                // تهيئة اللعبة مع البيانات
+                if (typeof window.startBattleGame === 'function') {
+                    window.startBattleGame(data, state, socket);
+                } else {
+                    console.error('❌ Game module not loaded correctly');
+                    showToast('❌ فشل تحميل اللعبة', 'error');
+                }
+            };
+            script.onerror = function() {
+                console.error('❌ Failed to load game.js');
+                showToast('❌ فشل تحميل اللعبة، يرجى تحديث الصفحة', 'error');
+            };
+            document.head.appendChild(script);
+        }
+
+        function exitGame() {
+            state.isInGame = false;
+            if (typeof window.exitBattleGame === 'function') {
+                window.exitBattleGame();
+            }
+            state.roomId = null;
+            state.roomJoined = false;
+            state.isInSeatsScreen = false;
+            state.gameStarting = false;
+            showScreen('mainScreen');
+            if (socket) {
+                socket.emit('leave_room');
+                socket.emit('list_rooms');
+            }
         }
 
         // ============================================
@@ -2377,7 +1504,6 @@
                 return;
             }
 
-            // غرفة واحدة من كل نوع
             const waitingRooms = rooms.filter(r => r.status === 'waiting');
             const unique = {};
             const filtered = [];
@@ -2521,550 +1647,6 @@
         }
 
         // ============================================
-        // GAME FUNCTIONS
-        // ============================================
-        function startGame(data) {
-            state.gameActive = true;
-            state.isEliminated = false;
-            state.killCount = 0;
-            state.aliveCount = data.totalPlayers || 0;
-            state.gameRound = data.gameRound || 1;
-
-            $('gameOverlay').classList.add('active');
-            $('gPlayerName').textContent = state.username || 'اللاعب';
-            $('gBalance').textContent = state.balance;
-            $('aliveCount').textContent = state.aliveCount;
-            $('killCount').textContent = '0';
-            $('gameRound').textContent = state.gameRound;
-            $('healthBar').style.width = '100%';
-            $('healthText').textContent = '100';
-
-            if (gameScene) gameScene.destroy();
-            gameScene = new GameScene();
-            gameScene.init();
-            gameScene.playerId = state.userId;
-
-            const myPos = data.position || { x: 0, z: 0 };
-            const myColor = 0x4a8b6a;
-            gameScene.playerTank = gameScene.createTank(myColor, myPos.x, myPos.z, state.userId);
-            gameScene.tanks.set(state.userId, gameScene.playerTank);
-
-            if (data.players) {
-                data.players.forEach(p => {
-                    if (p.userId !== state.userId) {
-                        const colors = [0x8b5a2b, 0x6a4a8b, 0x8b2b3a, 0x2b6a8b];
-                        const color = colors[Math.floor(Math.random() * colors.length)];
-                        const pos = p.position || { x: 0, z: 0 };
-                        const tank = gameScene.createTank(color, pos.x, pos.z, p.userId);
-                        gameScene.tanks.set(p.userId, tank);
-                    }
-                });
-            }
-
-            setupControls();
-            showToast('🎮 بدأت المعركة!', 'success');
-        }
-
-        function exitGame() {
-            state.gameActive = false;
-            state.isEliminated = false;
-            state.roomId = null;
-            state.roomJoined = false;
-            state.isInSeatsScreen = false;
-            state.gameStarting = false;
-            if (gameScene) { gameScene.destroy();
-                gameScene = null; }
-            if (moveInterval) { clearInterval(moveInterval);
-                moveInterval = null; }
-            $('gameOverlay').classList.remove('active');
-            $('eliminationOverlay').classList.remove('active');
-            $('reportOverlay').classList.remove('active');
-            showScreen('mainScreen');
-            if (socket) { socket.emit('leave_room');
-                socket.emit('list_rooms'); }
-        }
-
-        function leaveRoom() {
-            if (state.gameStarting) {
-                showToast('⏳ الجولة تبدأ، لا يمكن ترك المقعد', 'warning');
-                return;
-            }
-            if (socket && state.roomId) {
-                socket.emit('leave_room');
-            }
-        }
-
-        // ============================================
-        // CONTROLS
-        // ============================================
-        function setupControls() {
-            const base = $('joystickBase');
-            const handle = $('joystickHandle');
-
-            const startJoy = (e) => {
-                e.preventDefault();
-                joystickActive = true;
-                if (moveInterval) clearInterval(moveInterval);
-                moveInterval = setInterval(() => {
-                    if (joystickActive && state.gameActive && !state.isEliminated && gameScene && gameScene
-                        .playerTank && socket) {
-                        const pos = gameScene.playerTank.position;
-                        socket.emit('move', {
-                            position: { x: pos.x, y: 0, z: pos.z },
-                            rotation: gameScene.playerTank.rotation.y || 0
-                        });
-                    }
-                }, 50);
-            };
-
-            const moveJoy = (e) => {
-                if (!joystickActive) return;
-                e.preventDefault();
-                const rect = base.getBoundingClientRect();
-                const touch = e.touches ? e.touches[0] : e;
-                const cx = rect.left + rect.width / 2;
-                const cy = rect.top + rect.height / 2;
-                const dx = touch.clientX - cx;
-                const dy = touch.clientY - cy;
-                const maxD = rect.width / 2 - 20;
-                const dist = Math.min(Math.sqrt(dx * dx + dy * dy), maxD);
-                const angle = Math.atan2(dy, dx);
-                const x = Math.cos(angle) * dist;
-                const y = Math.sin(angle) * dist;
-                handle.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
-                joystickData = { x: x / maxD, y: y / maxD };
-                if (gameScene && gameScene.playerTank && !state.isEliminated) {
-                    if (Math.abs(joystickData.x) > 0.1 || Math.abs(joystickData.y) > 0.1) {
-                        gameScene.playerTank.rotation.y = Math.atan2(joystickData.x, joystickData.y);
-                    }
-                }
-            };
-
-            const endJoy = () => {
-                joystickActive = false;
-                handle.style.transform = 'translate(-50%, -50%)';
-                joystickData = { x: 0, y: 0 };
-                if (moveInterval) { clearInterval(moveInterval);
-                    moveInterval = null; }
-            };
-
-            base.addEventListener('touchstart', startJoy, { passive: false });
-            base.addEventListener('mousedown', startJoy);
-            document.addEventListener('touchmove', moveJoy, { passive: false });
-            document.addEventListener('mousemove', moveJoy);
-            document.addEventListener('touchend', endJoy);
-            document.addEventListener('mouseup', endJoy);
-
-            const fireBtn = $('fireBtn');
-            let lastFire = 0;
-            const cd = 2000;
-
-            const fire = () => {
-                if (state.isEliminated || !state.gameActive) return;
-                const now = Date.now();
-                if (now - lastFire < cd) {
-                    const rem = Math.ceil((cd - (now - lastFire)) / 1000);
-                    showToast(`⏳ انتظر ${rem} ثانية`, 'warning');
-                    return;
-                }
-                if (gameScene && gameScene.playerTank && socket) {
-                    lastFire = now;
-                    const pos = gameScene.playerTank.position;
-                    const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(gameScene.playerTank.quaternion);
-                    socket.emit('shoot', {
-                        position: { x: pos.x, y: 0, z: pos.z },
-                        direction: { x: dir.x, y: 0, z: dir.z }
-                    });
-                    const ct = $('cooldownText');
-                    ct.textContent = '⏱️';
-                    ct.style.opacity = '1';
-                    setTimeout(() => {
-                        ct.textContent = '🔥';
-                        setTimeout(() => ct.style.opacity = '0', 400);
-                    }, cd - 400);
-                }
-            };
-
-            fireBtn.addEventListener('click', fire);
-            fireBtn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                fire();
-            }, { passive: false });
-        }
-
-        // ============================================
-        // THREE.JS GAME SCENE
-        // ============================================
-        class GameScene {
-            constructor() {
-                this.scene = null;
-                this.camera = null;
-                this.renderer = null;
-                this.playerTank = null;
-                this.tanks = new Map();
-                this.bullets = [];
-                this.particles = [];
-                this.obstacles = [];
-                this.targetPositions = new Map();
-                this.gameActive = false;
-                this.playerId = null;
-                this.cameraShake = 0;
-                this.animationId = null;
-            }
-
-            init() {
-                const canvas = $('gameCanvas');
-                this.scene = new THREE.Scene();
-                this.scene.background = new THREE.Color(0x1a2a3a);
-                this.scene.fog = new THREE.FogExp2(0x1a2a3a, 0.0018);
-
-                this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 500);
-                this.camera.position.set(0, 20, 30);
-
-                this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-                this.renderer.setSize(window.innerWidth, window.innerHeight);
-                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-                this.renderer.shadowMap.enabled = true;
-
-                const ambient = new THREE.AmbientLight(0x446688, 0.6);
-                this.scene.add(ambient);
-                const sun = new THREE.DirectionalLight(0xffeedd, 1.4);
-                sun.position.set(50, 70, 40);
-                sun.castShadow = true;
-                sun.shadow.mapSize.set(1024, 1024);
-                this.scene.add(sun);
-
-                this.createTerrain();
-                this.createObstacles();
-                this.gameActive = true;
-                this.animate();
-                window.addEventListener('resize', () => this.onResize());
-            }
-
-            createTerrain() {
-                const canvas = document.createElement('canvas');
-                canvas.width = 512;
-                canvas.height = 512;
-                const ctx = canvas.getContext('2d');
-                ctx.fillStyle = '#2c5e2a';
-                ctx.fillRect(0, 0, 512, 512);
-                for (let i = 0; i < 3000; i++) {
-                    ctx.fillStyle = `hsl(${100 + Math.random() * 30}, 70%, ${30 + Math.random() * 30}%)`;
-                    ctx.fillRect(Math.random() * 512, Math.random() * 512, 2 + Math.random() * 4, 2 + Math.random() * 4);
-                }
-                const tex = new THREE.CanvasTexture(canvas);
-                tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-                tex.repeat.set(40, 40);
-                const ground = new THREE.Mesh(
-                    new THREE.PlaneGeometry(600, 600, 80, 80),
-                    new THREE.MeshStandardMaterial({ map: tex, roughness: 0.85, metalness: 0.05 })
-                );
-                ground.rotation.x = -Math.PI / 2;
-                ground.receiveShadow = true;
-                this.scene.add(ground);
-            }
-
-            createObstacles() {
-                const mat = new THREE.MeshStandardMaterial({ color: 0x6a6a5a, roughness: 0.75 });
-                const positions = [
-                    { x: -90, z: -70, s: 3.5 }, { x: -70, z: 40, s: 4.0 },
-                    { x: -40, z: -95, s: 3.2 }, { x: 20, z: -85, s: 3.8 },
-                    { x: 85, z: -50, s: 4.2 }, { x: 95, z: 20, s: 3.5 },
-                    { x: 75, z: 85, s: 4.0 }, { x: -55, z: -95, s: 3.6 },
-                    { x: -95, z: 25, s: 4.5 }, { x: -20, z: 95, s: 3.3 },
-                    { x: 50, z: -105, s: 3.8 }, { x: -85, z: -80, s: 4.0 },
-                    { x: -70, z: 85, s: 3.5 }, { x: 40, z: 105, s: 3.2 },
-                    { x: 105, z: 70, s: 4.0 }, { x: -105, z: -55, s: 4.2 },
-                    { x: -50, z: 105, s: 3.5 }, { x: 90, z: -90, s: 3.8 },
-                    { x: 0, z: -110, s: 4.0 }, { x: -110, z: 0, s: 4.5 },
-                    { x: 110, z: -30, s: 3.8 }, { x: 30, z: 110, s: 3.5 },
-                    { x: -95, z: 85, s: 4.0 }, { x: 95, z: 95, s: 4.2 }
-                ];
-                positions.forEach(p => {
-                    const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(p.s * 0.8, 1), mat);
-                    rock.position.set(p.x, p.s * 0.6, p.z);
-                    rock.scale.set(1, 0.8 + Math.random() * 0.4, 1);
-                    rock.castShadow = true;
-                    rock.receiveShadow = true;
-                    this.scene.add(rock);
-                    this.obstacles.push(rock);
-                });
-            }
-
-            createTank(color, x, z, playerId) {
-                const group = new THREE.Group();
-                const tMat = new THREE.MeshStandardMaterial({ color, roughness: 0.7, metalness: 0.3 });
-                const trackMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
-                const barrelMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6, metalness: 0.6 });
-
-                const chassis = new THREE.Mesh(new THREE.BoxGeometry(6, 1.5, 4.5), tMat);
-                chassis.position.y = 1;
-                chassis.castShadow = true;
-                group.add(chassis);
-
-                const turretGroup = new THREE.Group();
-                turretGroup.position.set(0, 2.4, -0.5);
-                group.add(turretGroup);
-                const turret = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.4, 1.2, 16), tMat);
-                turret.castShadow = true;
-                turretGroup.add(turret);
-
-                const barrelGroup = new THREE.Group();
-                barrelGroup.position.set(0, 0, 1.8);
-                turretGroup.add(barrelGroup);
-                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.25, 4.5, 32), barrelMat);
-                barrel.rotation.x = Math.PI / 2;
-                barrel.position.z = 2.25;
-                barrel.castShadow = true;
-                barrelGroup.add(barrel);
-
-                const trackGeo = new THREE.BoxGeometry(6.2, 1.2, 0.8);
-                const lt = new THREE.Mesh(trackGeo, trackMat);
-                lt.position.set(0, 0.7, 2.4);
-                lt.castShadow = true;
-                group.add(lt);
-                const rt = new THREE.Mesh(trackGeo, trackMat);
-                rt.position.set(0, 0.7, -2.4);
-                rt.castShadow = true;
-                group.add(rt);
-
-                group.position.set(x, 0, z);
-                group.userData = { health: 100, playerId };
-
-                if (playerId === state.userId) {
-                    const ind = new THREE.Mesh(
-                        new THREE.CircleGeometry(0.8, 16),
-                        new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.3 })
-                    );
-                    ind.rotation.x = -Math.PI / 2;
-                    ind.position.y = -0.5;
-                    group.add(ind);
-                }
-
-                this.scene.add(group);
-                return group;
-            }
-
-            createBullet(position, direction) {
-                const b = new THREE.Mesh(
-                    new THREE.SphereGeometry(0.3, 16, 16),
-                    new THREE.MeshStandardMaterial({ color: 0xff8844, emissive: 0xff4422, emissiveIntensity: 0.6 })
-                );
-                b.position.copy(position);
-                b.userData = { velocity: direction.clone().multiplyScalar(2.8), life: 200 };
-                this.scene.add(b);
-                this.bullets.push(b);
-                return b;
-            }
-
-            createExplosion(position, size = 1.2) {
-                const flash = new THREE.Mesh(
-                    new THREE.SphereGeometry(size * 0.6, 16, 16),
-                    new THREE.MeshStandardMaterial({ color: 0xffaa66, emissive: 0xff4422, emissiveIntensity: 1.2 })
-                );
-                flash.position.copy(position);
-                this.scene.add(flash);
-                setTimeout(() => this.scene.remove(flash), 200);
-
-                for (let i = 0; i < 50; i++) {
-                    const p = new THREE.Mesh(
-                        new THREE.SphereGeometry(0.08 + Math.random() * 0.12, 6, 6),
-                        new THREE.MeshStandardMaterial({
-                            color: new THREE.Color().setHSL(0.08 + Math.random() * 0.1, 0.9, 0.5 + Math.random() * 0.3),
-                            emissive: new THREE.Color().setHSL(0.08, 0.8, 0.3),
-                            emissiveIntensity: 0.5
-                        })
-                    );
-                    p.position.copy(position);
-                    const a1 = Math.random() * Math.PI * 2;
-                    const a2 = Math.random() * Math.PI * 2;
-                    const sp = 0.5 + Math.random() * 1.5;
-                    p.userData = {
-                        vel: new THREE.Vector3(Math.cos(a1) * Math.sin(a2) * sp, Math.sin(a1) * sp * 0.8 + 0.5, Math.cos(a2) *
-                            Math.sin(a1) * sp),
-                        life: 1 + Math.random() * 0.5,
-                        gravity: 0.02 + Math.random() * 0.02
-                    };
-                    this.scene.add(p);
-                    this.particles.push(p);
-                }
-            }
-
-            update() {
-                if (!this.gameActive) return;
-
-                for (let i = this.particles.length - 1; i >= 0; i--) {
-                    const p = this.particles[i];
-                    p.userData.life -= 0.02;
-                    if (p.userData.life <= 0) {
-                        this.scene.remove(p);
-                        this.particles.splice(i, 1);
-                    } else {
-                        p.position.x += p.userData.vel.x;
-                        p.position.z += p.userData.vel.z;
-                        p.position.y += p.userData.vel.y;
-                        if (p.userData.gravity) p.userData.vel.y -= p.userData.gravity;
-                        p.material.emissiveIntensity = p.userData.life * 1.5;
-                        const s = p.userData.life * 0.8 + 0.2;
-                        p.scale.setScalar(s);
-                    }
-                }
-
-                for (let i = this.bullets.length - 1; i >= 0; i--) {
-                    const b = this.bullets[i];
-                    b.position.add(b.userData.velocity);
-                    b.userData.life--;
-                    if (b.userData.life <= 0 || Math.abs(b.position.x) > 450 || Math.abs(b.position.z) > 450) {
-                        this.scene.remove(b);
-                        this.bullets.splice(i, 1);
-                    }
-                }
-
-                if (this.playerTank && !this.isEliminated) {
-                    const offset = new THREE.Vector3(0, 5.5, -12).applyQuaternion(this.playerTank.quaternion);
-                    let target = this.playerTank.position.clone().add(offset);
-                    if (this.cameraShake > 0) {
-                        target.x += (Math.random() - 0.5) * this.cameraShake * 0.5;
-                        target.y += (Math.random() - 0.5) * this.cameraShake * 0.3;
-                        this.cameraShake *= 0.92;
-                        if (this.cameraShake < 0.01) this.cameraShake = 0;
-                    }
-                    this.camera.position.lerp(target, 0.08);
-                    this.camera.lookAt(this.playerTank.position.clone().add(new THREE.Vector3(0, 1.2, 0)));
-                }
-
-                for (const [id, tank] of this.tanks) {
-                    if (id !== this.playerId && this.targetPositions.has(id)) {
-                        const target = this.targetPositions.get(id);
-                        tank.position.lerp(target, 0.15);
-                    }
-                }
-            }
-
-            animate() {
-                this.animationId = requestAnimationFrame(() => this.animate());
-                this.update();
-                if (this.renderer && this.scene && this.camera) {
-                    this.renderer.render(this.scene, this.camera);
-                }
-            }
-
-            onResize() {
-                if (this.camera && this.renderer) {
-                    this.camera.aspect = window.innerWidth / window.innerHeight;
-                    this.camera.updateProjectionMatrix();
-                    this.renderer.setSize(window.innerWidth, window.innerHeight);
-                }
-            }
-
-            destroy() {
-                this.gameActive = false;
-                if (this.animationId) {
-                    cancelAnimationFrame(this.animationId);
-                    this.animationId = null;
-                }
-                if (this.renderer) this.renderer.dispose();
-                this.tanks.clear();
-                this.bullets = [];
-                this.particles = [];
-                this.targetPositions.clear();
-            }
-        }
-
-        // ============================================
-        // ADMIN
-        // ============================================
-        function loadAdminPanel() {
-            if (!state.adminLoggedIn) return;
-            showToast('🔄 جاري تحميل لوحة التحكم...', 'info');
-            socket.emit('admin_command', { command: 'get_config' });
-            socket.emit('admin_command', { command: 'get_visual_settings' });
-            socket.emit('admin_command', { command: 'get_monitoring' });
-            socket.emit('admin_command', { command: 'get_stats' });
-            socket.emit('admin_command', { command: 'get_database_health' });
-
-            const grid = $('roomSettingsGrid');
-            grid.innerHTML = '';
-            const types = ['beginner', 'advanced', 'pro'];
-            const names = { beginner: '🟢 المبتدئين', advanced: '🟡 المتقدمين', pro: '🔴 المحترفين' };
-            types.forEach(t => {
-                const d = document.createElement('div');
-                d.style.cssText = 'padding:8px;background:rgba(255,255,255,0.03);border-radius:10px;';
-                d.innerHTML = `
-                    <label class="admin-label">${names[t]}</label>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
-                        <input class="admin-input room-setting" data-type="${t}" data-key="maxSeats" placeholder="المقاعد" type="number">
-                        <input class="admin-input room-setting" data-type="${t}" data-key="seatPrice" placeholder="السعر" type="number">
-                        <div class="admin-toggle" style="grid-column:1/-1;">
-                            <span class="toggle-label">مفعل</span>
-                            <div class="switch active room-toggle" data-type="${t}"></div>
-                        </div>
-                    </div>
-                `;
-                grid.appendChild(d);
-            });
-
-            const vGrid = $('visualSettingsGrid');
-            vGrid.innerHTML = '';
-            const events = [
-                { key: 'game_logo', label: '🎮 شعار اللعبة' },
-                { key: 'elimination', label: '💀 إقصاء' },
-                { key: 'kill', label: '🔫 قتل' },
-                { key: 'winner', label: '🏆 فائز' },
-                { key: 'game_start', label: '🎮 بدء' },
-                { key: 'game_end', label: '🏁 نهاية' }
-            ];
-            events.forEach(e => {
-                const d = document.createElement('div');
-                d.style.cssText = 'padding:8px;background:rgba(255,255,255,0.03);border-radius:10px;';
-                d.innerHTML = `
-                    <label class="admin-label">${e.label}</label>
-                    <input class="admin-input visual-setting" data-key="${e.key}" placeholder="رابط الصورة">
-                    <input class="admin-input visual-setting-alt" data-key="${e.key}" placeholder="النص البديل" style="margin-top:4px;">
-                    <button class="admin-btn primary visual-update-btn" data-key="${e.key}" style="margin-top:4px;padding:4px;font-size:12px;">تحديث</button>
-                `;
-                vGrid.appendChild(d);
-            });
-        }
-
-        function updateAdminUI(config) {
-            if (!config) return;
-            const ac = $('anticheatToggle');
-            const acLabel = $('anticheatLabel');
-            const en = config.system?.antiCheatEnabled !== false;
-            ac.classList.toggle('active', en);
-            acLabel.textContent = en ? 'مفعل' : 'معطل';
-
-            const mt = $('maintenanceToggle');
-            const mtLabel = $('maintenanceLabel');
-            const maint = config.system?.maintenanceMode || false;
-            mt.classList.toggle('active', maint);
-            mtLabel.textContent = maint ? 'مفعل' : 'معطل';
-
-            if (config.rooms) {
-                document.querySelectorAll('.room-setting').forEach(inp => {
-                    const t = inp.dataset.type;
-                    const k = inp.dataset.key;
-                    if (config.rooms[t] && config.rooms[t][k] !== undefined) inp.value = config.rooms[t][k];
-                });
-                document.querySelectorAll('.room-toggle').forEach(tog => {
-                    const t = tog.dataset.type;
-                    const en2 = config.rooms[t]?.enabled !== false;
-                    tog.classList.toggle('active', en2);
-                });
-            }
-        }
-
-        function updateVisualUI(settings) {
-            settings.forEach(s => {
-                const inp = document.querySelector(`.visual-setting[data-key="${s.event_key}"]`);
-                if (inp) inp.value = s.image_url || '';
-                const alt = document.querySelector(`.visual-setting-alt[data-key="${s.event_key}"]`);
-                if (alt) alt.value = s.alt_text || '';
-            });
-        }
-
-        // ============================================
         // UI EVENTS
         // ============================================
         function setupUIListeners() {
@@ -3095,12 +1677,7 @@
                             showToast('⚠️ غير مصرح لك', 'error');
                             return;
                         }
-                        $('adminPanel').classList.add('active');
-                        if (!state.adminLoggedIn) {
-                            $('adminContent').style.display = 'none';
-                            $('adminLoginStatus').textContent = '🔑 أدخل كلمة المرور';
-                            $('adminLoginStatus').style.color = 'var(--text-muted)';
-                        }
+                        window.location.href = 'admin.html';
                         return;
                     }
                     if (screenId === 'lobbyScreen') {
@@ -3153,7 +1730,15 @@
                 }
             });
 
-            $('seatsLeaveBtn').addEventListener('click', leaveRoom);
+            $('seatsLeaveBtn').addEventListener('click', () => {
+                if (state.gameStarting) {
+                    showToast('⏳ الجولة تبدأ، لا يمكن ترك المقعد', 'warning');
+                    return;
+                }
+                if (socket && state.roomId) {
+                    socket.emit('leave_room');
+                }
+            });
 
             $('seatsBackBtn').addEventListener('click', () => {
                 if (state.roomId && !state.gameStarting) {
@@ -3162,170 +1747,6 @@
                 state.isInSeatsScreen = false;
                 showScreen('lobbyScreen');
                 socket.emit('list_rooms');
-            });
-
-            // ---- REPORT ----
-            $('playAgainBtn').addEventListener('click', () => {
-                $('reportOverlay').classList.remove('active');
-                state.isInSeatsScreen = false;
-                showScreen('lobbyScreen');
-                if (socket) {
-                    socket.emit('join_lobby');
-                    socket.emit('list_rooms');
-                }
-            });
-
-            $('homeFromReportBtn').addEventListener('click', () => {
-                $('reportOverlay').classList.remove('active');
-                exitGame();
-            });
-
-            // ---- ADMIN ----
-            $('closeAdmin').addEventListener('click', () => {
-                $('adminPanel').classList.remove('active');
-            });
-
-            $('adminLoginBtn').addEventListener('click', () => {
-                const password = $('adminPasswordInput').value;
-                if (!password) {
-                    showToast('⚠️ أدخل كلمة المرور', 'warning');
-                    return;
-                }
-                if (socket) {
-                    socket.emit('admin_login', { password });
-                }
-            });
-
-            $('adminPasswordInput').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') $('adminLoginBtn').click();
-            });
-
-            // ---- ADMIN TOGGLES ----
-            $('maintenanceToggle').addEventListener('click', function() {
-                this.classList.toggle('active');
-                $('maintenanceLabel').textContent = this.classList.contains('active') ? 'مفعل' : 'معطل';
-                if (socket) socket.emit('admin_command', { command: 'toggle_maintenance' });
-            });
-
-            $('anticheatToggle').addEventListener('click', function() {
-                this.classList.toggle('active');
-                $('anticheatLabel').textContent = this.classList.contains('active') ? 'مفعل' : 'معطل';
-                if (socket) socket.emit('admin_command', { command: 'toggle_anticheat' });
-            });
-
-            // ---- ROOM SETTINGS ----
-            document.querySelectorAll('.room-setting').forEach(inp => {
-                inp.addEventListener('change', function() {
-                    const t = this.dataset.type,
-                        k = this.dataset.key,
-                        v = parseFloat(this.value);
-                    if (!isNaN(v) && socket) {
-                        socket.emit('admin_command', {
-                            command: 'update_config',
-                            params: { section: 'rooms', key: t, value: { [k]: v } }
-                        });
-                    }
-                });
-            });
-
-            document.querySelectorAll('.room-toggle').forEach(tog => {
-                tog.addEventListener('click', function() {
-                    const active = this.classList.toggle('active');
-                    const t = this.dataset.type;
-                    if (socket) {
-                        socket.emit('admin_command', {
-                            command: 'update_config',
-                            params: { section: 'rooms', key: t, value: { enabled: active } }
-                        });
-                    }
-                });
-            });
-
-            // ---- VISUAL SETTINGS ----
-            document.querySelectorAll('.visual-update-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const key = this.dataset.key;
-                    const url = document.querySelector(`.visual-setting[data-key="${key}"]`)?.value || '';
-                    const alt = document.querySelector(`.visual-setting-alt[data-key="${key}"]`)?.value || '';
-                    if (socket) {
-                        socket.emit('admin_command', {
-                            command: 'update_visual_setting',
-                            params: { eventKey: key, imageUrl: url, altText: alt }
-                        });
-                    }
-                });
-            });
-
-            // ---- PLAYER MANAGEMENT ----
-            $('adminAddBalance').addEventListener('click', () => {
-                const uid = $('adminTargetUserId').value;
-                const amt = parseFloat($('adminAmount').value);
-                if (!uid || isNaN(amt)) {
-                    showToast('⚠️ أدخل المعرف والمبلغ', 'warning');
-                    return;
-                }
-                if (socket) socket.emit('admin_command', {
-                    command: 'set_balance',
-                    params: { userId: uid, amount: amt, action: 'add' }
-                });
-            });
-
-            $('adminSubtractBalance').addEventListener('click', () => {
-                const uid = $('adminTargetUserId').value;
-                const amt = parseFloat($('adminAmount').value);
-                if (!uid || isNaN(amt)) {
-                    showToast('⚠️ أدخل المعرف والمبلغ', 'warning');
-                    return;
-                }
-                if (socket) socket.emit('admin_command', {
-                    command: 'set_balance',
-                    params: { userId: uid, amount: amt, action: 'subtract' }
-                });
-            });
-
-            $('adminKickPlayer').addEventListener('click', () => {
-                const uid = $('adminTargetUserId').value;
-                if (!uid) { showToast('⚠️ أدخل المعرف', 'warning'); return; }
-                if (confirm(`طرد اللاعب ${uid}؟`)) {
-                    if (socket) socket.emit('admin_command', {
-                        command: 'kick_player',
-                        params: { userId: uid, reason: 'تم طردك بواسطة المدير' }
-                    });
-                }
-            });
-
-            $('adminBanPlayer').addEventListener('click', () => {
-                const uid = $('adminTargetUserId').value;
-                if (!uid) { showToast('⚠️ أدخل المعرف', 'warning'); return; }
-                if (confirm(`حظر اللاعب ${uid} نهائياً؟`)) {
-                    if (socket) socket.emit('admin_command', {
-                        command: 'ban_player',
-                        params: { userId: uid, duration: 24 * 60 * 60 * 1000, reason: 'تم حظرك بواسطة المدير' }
-                    });
-                }
-            });
-
-            // ---- STATS ----
-            $('adminRefreshStats').addEventListener('click', () => {
-                if (socket) {
-                    socket.emit('admin_command', { command: 'get_stats' });
-                    socket.emit('admin_command', { command: 'get_monitoring' });
-                    showToast('🔄 تحديث الإحصائيات...', 'info');
-                }
-            });
-
-            $('adminDbHealth').addEventListener('click', () => {
-                if (socket) socket.emit('admin_command', { command: 'get_database_health' });
-            });
-
-            $('adminForceReconnect').addEventListener('click', () => {
-                if (socket) socket.emit('admin_command', { command: 'force_reconnect_db' });
-            });
-
-            $('adminResetConfig').addEventListener('click', () => {
-                if (confirm('إعادة تعيين جميع الإعدادات؟')) {
-                    if (socket) socket.emit('admin_command', { command: 'reset_config' });
-                }
             });
         }
 
@@ -3336,25 +1757,17 @@
             try {
                 showLoading(true);
 
-                // تحقق من المعرف في الرابط
                 const params = new URLSearchParams(window.location.search);
                 const userId = params.get('user_id');
-                if (userId) {
-                    $('authUserId').value = userId;
-                }
+                if (userId) $('authUserId').value = userId;
 
-                // معرف محفوظ
                 const savedId = localStorage.getItem('btUserId');
-                if (savedId && !userId) {
-                    $('authUserId').value = savedId;
-                }
+                if (savedId && !userId) $('authUserId').value = savedId;
 
-                // الاتصال بالخادم
                 await connectSocket();
                 setupSocketEvents();
                 setupUIListeners();
 
-                // محاولة تسجيل الدخول التلقائي
                 if (userId) {
                     showLoading(true);
                     authenticate(userId);
@@ -3365,6 +1778,9 @@
                     showLoading(false);
                     showScreen('authScreen');
                 }
+
+                // جعل وظائف الخروج متاحة عالمياً
+                window.exitGame = exitGame;
 
             } catch (e) {
                 console.error('❌ Init error:', e);
@@ -3378,14 +1794,14 @@
         // START
         // ============================================
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('🚀 Starting Battle Tanks Royale v6.0.0');
+            console.log('🚀 Starting Battle Tanks Royale v7.0.0');
             initApp();
         });
 
         // ---- ORIENTATION ----
         window.addEventListener('orientationchange', () => {
             const warn = $('landscapeWarning');
-            if ($('gameOverlay').classList.contains('active')) {
+            if (state.isInGame) {
                 warn.style.display = (window.innerHeight > window.innerWidth) ? 'flex' : 'none';
             }
         });
@@ -3404,7 +1820,8 @@
             showToast('⚠️ انقطع الاتصال بالإنترنت', 'warning');
         });
 
-        console.log('🎮 Battle Tanks Royale v6.0.0 loaded');
+        console.log('🎮 Battle Tanks Royale v7.0.0 loaded');
     </script>
+
 </body>
 </html>
