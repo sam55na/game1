@@ -15,6 +15,7 @@
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
         }
+
         :root {
             --primary: #d4af37;
             --primary-dark: #b8860b;
@@ -27,7 +28,10 @@
             --radius: 14px;
             --danger: #e74c3c;
             --success: #2ecc71;
+            --header-height: 60px;
+            --bottom-nav-height: 70px;
         }
+
         body {
             font-family: 'Cairo', sans-serif;
             background: var(--bg-dark);
@@ -37,6 +41,8 @@
             width: 100vw;
             position: relative;
         }
+
+        /* ========== SCREENS ========== */
         .screen {
             position: fixed;
             top: 0;
@@ -44,22 +50,132 @@
             width: 100%;
             height: 100%;
             display: none;
-            z-index: 10;
-            padding: 16px;
-            overflow-y: auto;
-            background: var(--bg-dark);
-        }
-        .screen.active {
-            display: flex !important;
             flex-direction: column;
+            z-index: 10;
+            background: var(--bg-dark);
+            padding-top: var(--header-height);
+            padding-bottom: calc(var(--bottom-nav-height) + 10px);
         }
 
-        /* Loading */
+        .screen.active {
+            display: flex !important;
+        }
+
+        /* ========== TOP HEADER ========== */
+        .top-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--header-height);
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 16px;
+            z-index: 100;
+        }
+
+        .top-header .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .top-header .user-id {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .top-header .user-id span {
+            color: var(--primary);
+        }
+
+        .top-header .balance {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .top-header .brand {
+            font-size: 20px;
+            font-weight: 900;
+            color: var(--primary);
+        }
+
+        /* ========== BOTTOM NAV ========== */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: var(--bottom-nav-height);
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(212, 175, 55, 0.08);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 100;
+            padding: 0 10px;
+        }
+
+        .bottom-nav .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            padding: 6px 12px;
+            border: none;
+            background: none;
+            color: var(--text-muted);
+            font-family: 'Cairo', sans-serif;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            min-width: 60px;
+        }
+
+        .bottom-nav .nav-item i {
+            font-size: 22px;
+            transition: all 0.3s;
+        }
+
+        .bottom-nav .nav-item.active {
+            color: var(--primary);
+        }
+
+        .bottom-nav .nav-item.active i {
+            transform: translateY(-2px);
+        }
+
+        .bottom-nav .nav-item .badge {
+            position: absolute;
+            top: -2px;
+            right: 4px;
+            background: var(--danger);
+            color: #fff;
+            font-size: 9px;
+            padding: 1px 6px;
+            border-radius: 10px;
+            font-weight: 700;
+        }
+
+        /* ========== LOADING ========== */
         #loadingScreen {
             z-index: 99999;
             justify-content: center;
             align-items: center;
+            padding: 0;
         }
+
         #loadingScreen .spinner {
             width: 60px;
             height: 60px;
@@ -68,11 +184,13 @@
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
+
         @keyframes spin {
             100% {
                 transform: rotate(360deg);
             }
         }
+
         #loadingScreen .text {
             margin-top: 20px;
             color: var(--primary);
@@ -80,12 +198,20 @@
             font-size: 18px;
         }
 
-        /* Auth */
+        #loadingScreen .sub-text {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        /* ========== AUTH ========== */
         #authScreen {
             justify-content: center;
             align-items: center;
-            z-index: 100;
+            padding: 20px;
+            z-index: 50;
         }
+
         .auth-box {
             background: var(--bg-card);
             padding: 40px 30px;
@@ -96,6 +222,7 @@
             border: 1px solid rgba(212, 175, 55, 0.15);
             backdrop-filter: blur(20px);
         }
+
         .auth-box .logo {
             font-size: 60px;
         }
@@ -108,6 +235,7 @@
             color: var(--text-muted);
             margin-bottom: 24px;
         }
+
         .auth-btn {
             width: 100%;
             padding: 14px;
@@ -123,147 +251,123 @@
             justify-content: center;
             gap: 10px;
         }
+
         .auth-btn:active {
             transform: scale(0.96);
         }
         .auth-btn.telegram {
             background: linear-gradient(135deg, #0088cc, #0066aa);
         }
+
+        .auth-input {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: #fff;
+            font-size: 16px;
+            font-family: 'Cairo', sans-serif;
+            text-align: center;
+            margin-bottom: 12px;
+        }
+
+        .auth-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .auth-input::placeholder {
+            color: var(--text-muted);
+        }
+
         .auth-footer {
             margin-top: 16px;
             font-size: 13px;
             color: var(--text-muted);
         }
-        .auth-footer a {
-            color: var(--primary);
-            text-decoration: none;
-        }
 
-        /* Main */
+        /* ========== MAIN SCREEN ========== */
         #mainScreen {
             padding: 16px;
-            background: var(--bg-dark);
+            overflow-y: auto;
         }
-        .main-header {
+
+        .main-content {
+            flex: 1;
             display: flex;
-            justify-content: space-between;
+            flex-direction: column;
             align-items: center;
-            padding: 12px 16px;
-            background: var(--bg-card);
+            justify-content: center;
+            gap: 24px;
+            padding: 20px 0;
+        }
+
+        .game-logo {
+            width: 100%;
+            max-width: 300px;
+            aspect-ratio: 1/1;
             border-radius: var(--radius);
-            margin-bottom: 16px;
-            border: 1px solid rgba(212, 175, 55, 0.08);
-        }
-        .main-header .brand {
-            font-size: 22px;
-            font-weight: 900;
-            color: var(--primary);
-        }
-        .main-header .user {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .main-header .avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: var(--primary);
+            overflow: hidden;
+            background: var(--bg-card);
+            border: 2px solid rgba(212, 175, 55, 0.1);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 700;
-            font-size: 18px;
-            color: #fff;
-            overflow: hidden;
+            position: relative;
         }
-        .main-header .avatar img {
+
+        .game-logo img {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
-        .main-header .name {
-            font-weight: 600;
-            font-size: 15px;
-        }
-        .main-header .balance {
+
+        .game-logo .placeholder {
+            font-size: 80px;
             color: var(--primary);
-            font-weight: 600;
-            font-size: 13px;
+            opacity: 0.5;
         }
 
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            margin-bottom: 16px;
-        }
-        .stat-card {
-            background: var(--bg-card);
-            padding: 12px;
-            border-radius: var(--radius);
-            text-align: center;
-            border: 1px solid rgba(212, 175, 55, 0.05);
-        }
-        .stat-card .icon {
-            font-size: 22px;
-        }
-        .stat-card .value {
-            font-size: 20px;
-            font-weight: 800;
-            color: var(--primary);
-        }
-        .stat-card .label {
-            font-size: 11px;
-            color: var(--text-muted);
-        }
-
-        .action-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            flex: 1;
-        }
-        .action-btn {
-            padding: 20px;
+        .play-btn {
+            width: 100%;
+            max-width: 280px;
+            padding: 18px;
             border: none;
-            border-radius: var(--radius);
-            background: var(--bg-card);
-            color: var(--text-light);
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: transform 0.2s;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 6px;
-            border: 1px solid rgba(212, 175, 55, 0.08);
+            border-radius: 50px;
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+            color: #fff;
+            font-size: 22px;
+            font-weight: 800;
             font-family: 'Cairo', sans-serif;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 30px rgba(212, 175, 55, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
         }
-        .action-btn:active {
-            transform: scale(0.95);
+
+        .play-btn:active {
+            transform: scale(0.96);
         }
-        .action-btn i {
+
+        .play-btn i {
             font-size: 28px;
         }
-        .action-btn.primary {
-            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
-            border: none;
-        }
-        .action-btn.admin {
-            border-color: rgba(231, 76, 60, 0.3);
-        }
-        .action-btn.admin i {
-            color: #e74c3c;
+
+        .play-btn.loading {
+            opacity: 0.7;
+            pointer-events: none;
         }
 
-        /* Lobby */
+        /* ========== LOBBY SCREEN ========== */
         #lobbyScreen {
-            background: rgba(10, 15, 26, 0.97);
-            backdrop-filter: blur(16px);
             padding: 16px;
+            overflow-y: auto;
         }
+
         .lobby-header {
             display: flex;
             justify-content: space-between;
@@ -274,21 +378,25 @@
             margin-bottom: 16px;
             border: 1px solid rgba(212, 175, 55, 0.08);
         }
+
         .lobby-header h2 {
             color: var(--primary);
-            font-size: 22px;
+            font-size: 20px;
         }
+
         .lobby-stats {
             display: flex;
-            gap: 16px;
-            font-size: 13px;
+            gap: 12px;
+            font-size: 12px;
             color: var(--text-muted);
         }
+
         .lobby-stats span {
             display: flex;
             align-items: center;
             gap: 4px;
         }
+
         .lobby-stats i {
             color: var(--primary);
         }
@@ -300,6 +408,7 @@
             flex: 1;
             padding-bottom: 12px;
         }
+
         .room-card {
             background: var(--bg-card);
             padding: 16px;
@@ -309,6 +418,7 @@
             transition: all 0.2s;
             position: relative;
         }
+
         .room-card:active {
             transform: scale(0.97);
         }
@@ -316,6 +426,7 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+
         .room-card .badge {
             position: absolute;
             top: 10px;
@@ -326,16 +437,19 @@
             background: rgba(212, 175, 55, 0.15);
             color: var(--primary);
         }
+
         .room-card .type {
             font-size: 12px;
             color: var(--primary);
             font-weight: 600;
         }
+
         .room-card .name {
             font-size: 18px;
             font-weight: 700;
             margin: 4px 0;
         }
+
         .room-card .details {
             display: flex;
             justify-content: space-between;
@@ -344,35 +458,37 @@
             gap: 6px;
             font-size: 14px;
         }
+
         .room-card .details .players {
             color: var(--text-muted);
         }
+
         .room-card .details .players .count {
             color: #fff;
             font-weight: 700;
         }
+
         .room-card .details .price {
             color: var(--primary);
             font-weight: 700;
         }
+
         .room-card .status {
             padding: 2px 10px;
             border-radius: 20px;
             font-size: 11px;
             font-weight: 600;
         }
+
         .room-card .status.waiting {
             background: rgba(46, 204, 113, 0.2);
             color: #2ecc71;
-        }
-        .room-card .status.active {
-            background: rgba(231, 76, 60, 0.2);
-            color: #e74c3c;
         }
         .room-card .status.full {
             background: rgba(241, 196, 15, 0.2);
             color: #f1c40f;
         }
+
         .room-card .progress {
             margin-top: 10px;
             height: 3px;
@@ -380,6 +496,7 @@
             border-radius: 4px;
             overflow: hidden;
         }
+
         .room-card .progress .bar {
             height: 100%;
             background: linear-gradient(90deg, var(--primary-dark), var(--primary-light));
@@ -387,13 +504,12 @@
             transition: width 0.3s;
         }
 
-        /* Room Seats */
-        #roomSeatsScreen {
-            background: rgba(10, 15, 26, 0.98);
-            backdrop-filter: blur(16px);
+        /* ========== ROOM SEATS ========== */
+        #seatsScreen {
             padding: 16px;
-            z-index: 50;
+            overflow-y: auto;
         }
+
         .seats-header {
             display: flex;
             justify-content: space-between;
@@ -403,98 +519,122 @@
             border-radius: var(--radius);
             margin-bottom: 16px;
             border: 1px solid rgba(212, 175, 55, 0.08);
+            flex-wrap: wrap;
+            gap: 8px;
         }
-        .seats-header h2 {
+
+        .seats-header .info h2 {
             color: var(--primary);
-            font-size: 22px;
+            font-size: 20px;
         }
-        .seats-header .info {
+
+        .seats-header .info .sub {
             color: var(--text-muted);
-            font-size: 14px;
+            font-size: 13px;
         }
+
+        .seats-header .status-badge {
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .seats-header .status-badge.waiting {
+            background: rgba(46, 204, 113, 0.2);
+            color: #2ecc71;
+        }
+
+        .seats-header .status-badge.starting {
+            background: rgba(241, 196, 15, 0.2);
+            color: #f1c40f;
+        }
+
         .seats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-            gap: 12px;
+            gap: 10px;
             flex: 1;
             padding-bottom: 12px;
         }
+
         .seat-item {
             background: var(--bg-card);
-            padding: 16px 10px;
+            padding: 12px 8px;
             border-radius: var(--radius);
             text-align: center;
             border: 2px solid rgba(255, 255, 255, 0.05);
             transition: all 0.3s;
-            cursor: pointer;
-            position: relative;
             min-height: 80px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 4px;
+            gap: 2px;
         }
-        .seat-item .seat-number {
+
+        .seat-item .num {
             font-size: 14px;
             font-weight: 700;
             color: var(--text-muted);
         }
-        .seat-item .seat-name {
-            font-size: 12px;
+
+        .seat-item .name {
+            font-size: 11px;
             font-weight: 600;
             max-width: 100%;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+
         .seat-item.occupied {
             border-color: var(--primary);
-            background: rgba(212, 175, 55, 0.1);
+            background: rgba(212, 175, 55, 0.08);
         }
-        .seat-item.occupied .seat-number {
+
+        .seat-item.occupied .num {
             color: var(--primary);
         }
-        .seat-item.occupied .seat-name {
-            color: var(--text-light);
+
+        .seat-item.your {
+            border-color: var(--success);
+            background: rgba(46, 204, 113, 0.1);
         }
-        .seat-item.your-seat {
-            border-color: #2ecc71;
-            background: rgba(46, 204, 113, 0.15);
+
+        .seat-item.your .num {
+            color: var(--success);
         }
-        .seat-item.your-seat .seat-number {
-            color: #2ecc71;
-        }
+
         .seat-item.empty {
             border-color: rgba(255, 255, 255, 0.05);
+            cursor: pointer;
         }
+
         .seat-item.empty:hover {
             border-color: var(--primary);
         }
-        .seat-item .status-badge {
-            font-size: 10px;
-            padding: 2px 8px;
+
+        .seat-item .status-tag {
+            font-size: 9px;
+            padding: 1px 8px;
             border-radius: 10px;
             margin-top: 2px;
         }
-        .seat-item .status-badge.occupied {
+
+        .seat-item .status-tag.occupied {
             background: rgba(212, 175, 55, 0.2);
             color: var(--primary);
         }
-        .seat-item .status-badge.empty {
+
+        .seat-item .status-tag.your {
+            background: rgba(46, 204, 113, 0.2);
+            color: var(--success);
+        }
+
+        .seat-item .status-tag.empty {
             background: rgba(255, 255, 255, 0.05);
             color: var(--text-muted);
-        }
-        .seat-item .status-badge.your {
-            background: rgba(46, 204, 113, 0.2);
-            color: #2ecc71;
-        }
-        .seat-item .lock-icon {
-            position: absolute;
-            top: 4px;
-            right: 4px;
-            font-size: 12px;
-            color: var(--primary);
         }
 
         .seats-actions {
@@ -503,33 +643,225 @@
             gap: 10px;
             margin-top: 8px;
         }
+
         .seats-actions .btn {
             padding: 12px;
             border: none;
             border-radius: var(--radius);
             font-weight: 700;
-            font-size: 16px;
+            font-size: 15px;
             cursor: pointer;
             font-family: 'Cairo', sans-serif;
             transition: transform 0.2s;
         }
+
         .seats-actions .btn:active {
             transform: scale(0.96);
         }
+
         .seats-actions .btn.primary {
             background: linear-gradient(135deg, var(--primary-dark), var(--primary));
             color: #fff;
         }
+
         .seats-actions .btn.danger {
             background: var(--danger);
             color: #fff;
         }
+
         .seats-actions .btn.secondary {
             background: rgba(255, 255, 255, 0.08);
             color: var(--text-light);
         }
 
-        /* Game Overlay */
+        .seats-actions .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ========== STATS SCREEN ========== */
+        #statsScreen {
+            padding: 16px;
+            overflow-y: auto;
+        }
+
+        .stats-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            padding: 16px;
+            border-radius: var(--radius);
+            text-align: center;
+            border: 1px solid rgba(212, 175, 55, 0.05);
+        }
+
+        .stat-card .icon {
+            font-size: 28px;
+        }
+
+        .stat-card .value {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        .stat-card .label {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .leaderboard-box {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 16px;
+            border: 1px solid rgba(212, 175, 55, 0.05);
+            flex: 1;
+            overflow-y: auto;
+            max-height: 300px;
+        }
+
+        .leaderboard-box h3 {
+            color: var(--primary);
+            font-size: 18px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .lb-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 14px;
+        }
+
+        .lb-item .rank {
+            font-weight: 700;
+            color: var(--text-muted);
+            min-width: 30px;
+        }
+
+        .lb-item .name {
+            font-weight: 600;
+            flex: 1;
+            margin: 0 10px;
+        }
+
+        .lb-item .elo {
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        .lb-item .kills {
+            color: var(--text-muted);
+            font-size: 12px;
+            margin-left: 10px;
+        }
+
+        .lb-item.top1 .rank {
+            color: #ffd700;
+        }
+        .lb-item.top2 .rank {
+            color: #c0c0c0;
+        }
+        .lb-item.top3 .rank {
+            color: #cd7f32;
+        }
+
+        /* ========== PROFILE SCREEN ========== */
+        #profileScreen {
+            padding: 16px;
+            overflow-y: auto;
+        }
+
+        .profile-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            padding: 20px 0;
+        }
+
+        .profile-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            border: 3px solid var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            color: var(--primary);
+            overflow: hidden;
+        }
+
+        .profile-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .profile-name {
+            font-size: 24px;
+            font-weight: 800;
+        }
+
+        .profile-id {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .profile-rank {
+            padding: 4px 20px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .profile-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .profile-stat {
+            background: var(--bg-card);
+            padding: 12px;
+            border-radius: var(--radius);
+            text-align: center;
+            border: 1px solid rgba(212, 175, 55, 0.05);
+        }
+
+        .profile-stat .value {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        .profile-stat .label {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* ========== GAME OVERLAY ========== */
         .game-overlay {
             position: fixed;
             top: 0;
@@ -540,16 +872,18 @@
             display: none;
             background: #0a0f1a;
         }
+
         .game-overlay.active {
             display: block;
         }
+
         .game-overlay canvas {
             width: 100% !important;
             height: 100% !important;
             display: block;
         }
 
-        /* Game HUD */
+        /* ========== GAME HUD ========== */
         .game-hud {
             position: absolute;
             top: 0;
@@ -558,32 +892,38 @@
             height: 100%;
             pointer-events: none;
         }
+
         .hud-top {
             display: flex;
             justify-content: space-between;
             padding: 10px 14px;
             background: linear-gradient(180deg, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
         }
+
         .hud-left {
             display: flex;
             flex-direction: column;
             gap: 2px;
         }
+
         .hud-left .pname {
             font-size: 14px;
             font-weight: 600;
             text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
         }
+
         .hud-left .pbalance {
             font-size: 12px;
             color: var(--primary);
             font-weight: 600;
         }
+
         .hud-health {
             display: flex;
             align-items: center;
             gap: 6px;
         }
+
         .hud-health .bar {
             width: 100px;
             height: 6px;
@@ -591,40 +931,48 @@
             border-radius: 4px;
             overflow: hidden;
         }
+
         .hud-health .bar .fill {
             height: 100%;
             background: linear-gradient(90deg, #e74c3c, #2ecc71);
             border-radius: 4px;
             transition: width 0.3s;
         }
+
         .hud-health .text {
             font-size: 14px;
             font-weight: 700;
             min-width: 28px;
             text-align: center;
         }
+
         .hud-right {
             display: flex;
             flex-direction: column;
             align-items: flex-end;
             gap: 2px;
         }
+
         .hud-right .alive {
             font-size: 14px;
             font-weight: 700;
             text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
         }
+
         .hud-right .alive span {
             color: var(--primary);
         }
+
         .hud-right .kills {
             font-size: 12px;
             color: var(--text-muted);
         }
+
         .hud-right .kills span {
             color: #e74c3c;
             font-weight: 700;
         }
+
         .hud-right .round {
             font-size: 11px;
             color: var(--text-muted);
@@ -637,6 +985,7 @@
             pointer-events: none;
             max-width: 200px;
         }
+
         .kill-feed .item {
             background: rgba(0, 0, 0, 0.7);
             backdrop-filter: blur(8px);
@@ -647,6 +996,7 @@
             animation: kfIn 0.4s ease, kfOut 0.4s ease 2.6s forwards;
             border-right: 3px solid #e74c3c;
         }
+
         .kill-feed .item .k {
             color: #2ecc71;
             font-weight: 600;
@@ -655,6 +1005,7 @@
             color: #e74c3c;
             font-weight: 600;
         }
+
         @keyframes kfIn {
             0% {
                 opacity: 0;
@@ -665,6 +1016,7 @@
                 transform: translateX(0);
             }
         }
+
         @keyframes kfOut {
             0% {
                 opacity: 1;
@@ -685,12 +1037,14 @@
             padding: 0 16px;
             pointer-events: none;
         }
+
         .joystick-area {
             width: clamp(100px, 25vw, 140px);
             height: clamp(100px, 25vw, 140px);
             pointer-events: auto;
             position: relative;
         }
+
         .joystick-base {
             width: 100%;
             height: 100%;
@@ -700,6 +1054,7 @@
             position: relative;
             backdrop-filter: blur(8px);
         }
+
         .joystick-handle {
             width: clamp(40px, 10vw, 55px);
             height: clamp(40px, 10vw, 55px);
@@ -712,6 +1067,7 @@
             pointer-events: none;
             box-shadow: 0 0 30px rgba(212, 175, 55, 0.2);
         }
+
         .fire-btn {
             width: clamp(70px, 18vw, 85px);
             height: clamp(70px, 18vw, 85px);
@@ -729,16 +1085,18 @@
             user-select: none;
             -webkit-tap-highlight-color: transparent;
         }
+
         .fire-btn:active {
             transform: scale(0.92);
         }
+
         .fire-btn .cd {
             position: absolute;
             font-size: 11px;
             font-weight: 700;
         }
 
-        /* Elimination */
+        /* ========== ELIMINATION ========== */
         .elimination-overlay {
             position: fixed;
             top: 0;
@@ -754,9 +1112,11 @@
             flex-direction: column;
             gap: 16px;
         }
+
         .elimination-overlay.active {
             display: flex;
         }
+
         .elimination-overlay .icon {
             font-size: 72px;
         }
@@ -775,7 +1135,7 @@
             color: var(--primary);
         }
 
-        /* Report */
+        /* ========== REPORT ========== */
         .report-overlay {
             position: fixed;
             top: 0;
@@ -790,9 +1150,11 @@
             z-index: 3000;
             padding: 20px;
         }
+
         .report-overlay.active {
             display: flex;
         }
+
         .report-box {
             background: var(--bg-card);
             padding: 30px;
@@ -804,6 +1166,7 @@
             max-height: 90vh;
             overflow-y: auto;
         }
+
         .report-box .icon {
             font-size: 64px;
         }
@@ -816,17 +1179,20 @@
             color: var(--text-muted);
             margin-bottom: 16px;
         }
+
         .report-stats {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 10px;
             margin: 16px 0;
         }
+
         .report-stat {
             background: rgba(255, 255, 255, 0.05);
             padding: 12px;
             border-radius: 12px;
         }
+
         .report-stat .value {
             font-size: 24px;
             font-weight: 800;
@@ -836,6 +1202,7 @@
             font-size: 12px;
             color: var(--text-muted);
         }
+
         .report-btn {
             width: 100%;
             padding: 14px;
@@ -849,6 +1216,7 @@
             margin-top: 10px;
             transition: transform 0.2s;
         }
+
         .report-btn:active {
             transform: scale(0.96);
         }
@@ -856,18 +1224,22 @@
             background: rgba(255, 255, 255, 0.1);
         }
 
-        /* Admin */
+        /* ========== ADMIN PANEL ========== */
         #adminPanel {
             z-index: 5000;
             background: rgba(0, 0, 0, 0.97);
             backdrop-filter: blur(20px);
             padding: 16px;
             overflow-y: auto;
+            padding-top: var(--header-height);
+            padding-bottom: 20px;
         }
+
         .admin-box {
             max-width: 700px;
             margin: 0 auto;
         }
+
         .admin-header {
             display: flex;
             justify-content: space-between;
@@ -878,6 +1250,7 @@
             margin-bottom: 16px;
             border: 1px solid rgba(212, 175, 55, 0.08);
         }
+
         .admin-header h2 {
             color: var(--primary);
             font-size: 22px;
@@ -885,6 +1258,7 @@
             align-items: center;
             gap: 8px;
         }
+
         .admin-close {
             padding: 6px 16px;
             background: rgba(231, 76, 60, 0.2);
@@ -894,6 +1268,7 @@
             cursor: pointer;
             font-weight: 600;
         }
+
         .admin-section {
             background: var(--bg-card);
             padding: 16px;
@@ -901,6 +1276,7 @@
             margin-bottom: 12px;
             border: 1px solid rgba(212, 175, 55, 0.05);
         }
+
         .admin-section h3 {
             color: var(--primary);
             font-size: 18px;
@@ -909,11 +1285,13 @@
             align-items: center;
             gap: 8px;
         }
+
         .admin-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
             gap: 10px;
         }
+
         .admin-input {
             width: 100%;
             padding: 8px 12px;
@@ -924,6 +1302,7 @@
             font-size: 14px;
             font-family: 'Cairo', sans-serif;
         }
+
         .admin-input:focus {
             outline: none;
             border-color: var(--primary);
@@ -931,12 +1310,14 @@
         .admin-input::placeholder {
             color: var(--text-muted);
         }
+
         .admin-label {
             font-size: 12px;
             color: var(--text-muted);
             display: block;
             margin-bottom: 4px;
         }
+
         .admin-btn {
             padding: 8px 16px;
             border: none;
@@ -949,6 +1330,7 @@
             transition: transform 0.2s;
             width: 100%;
         }
+
         .admin-btn:active {
             transform: scale(0.96);
         }
@@ -961,6 +1343,7 @@
         .admin-btn.success {
             background: linear-gradient(135deg, #27ae60, #2ecc71);
         }
+
         .admin-toggle {
             display: flex;
             align-items: center;
@@ -969,6 +1352,7 @@
             background: rgba(255, 255, 255, 0.04);
             border-radius: 10px;
         }
+
         .admin-toggle .switch {
             width: 42px;
             height: 22px;
@@ -978,9 +1362,11 @@
             transition: 0.3s;
             position: relative;
         }
+
         .admin-toggle .switch.active {
             background: var(--primary);
         }
+
         .admin-toggle .switch::after {
             content: '';
             position: absolute;
@@ -992,9 +1378,11 @@
             border-radius: 50%;
             transition: 0.3s;
         }
+
         .admin-toggle .switch.active::after {
             left: 22px;
         }
+
         .admin-stats {
             background: rgba(0, 0, 0, 0.3);
             padding: 12px;
@@ -1002,11 +1390,26 @@
             font-size: 13px;
             line-height: 1.8;
             font-family: monospace;
-            max-height: 180px;
+            max-height: 200px;
             overflow-y: auto;
         }
 
-        /* Landscape Warning */
+        .admin-password-input {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .admin-password-input input {
+            flex: 1;
+        }
+
+        .admin-password-input button {
+            width: auto;
+            padding: 8px 20px;
+        }
+
+        /* ========== LANDSCAPE WARNING ========== */
         .landscape-warning {
             position: fixed;
             top: 0;
@@ -1024,6 +1427,7 @@
             padding: 30px;
             text-align: center;
         }
+
         .landscape-warning .icon {
             font-size: 72px;
         }
@@ -1037,13 +1441,13 @@
             max-width: 400px;
         }
 
-        /* Toast */
+        /* ========== TOAST ========== */
         .toast {
             position: fixed;
-            top: 16px;
+            top: calc(var(--header-height) + 10px);
             left: 50%;
             transform: translateX(-50%);
-            padding: 10px 24px;
+            padding: 10px 20px;
             background: rgba(0, 0, 0, 0.92);
             backdrop-filter: blur(12px);
             border-radius: 12px;
@@ -1058,6 +1462,7 @@
             text-align: center;
             pointer-events: none;
         }
+
         @keyframes toastIn {
             0% {
                 opacity: 0;
@@ -1068,40 +1473,8 @@
                 transform: translateX(-50%) translateY(0);
             }
         }
-        @keyframes toastOut {
-            0% {
-                opacity: 1;
-            }
-            100% {
-                opacity: 0;
-                transform: translateX(-50%) translateY(-20px);
-            }
-        }
 
-        /* Responsive */
-        @media (max-width: 600px) {
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            .rooms-grid {
-                grid-template-columns: 1fr;
-            }
-            .admin-grid {
-                grid-template-columns: 1fr;
-            }
-            .action-grid {
-                grid-template-columns: 1fr 1fr;
-            }
-            .hud-health .bar {
-                width: 70px;
-            }
-            .seats-grid {
-                grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
-            }
-            .seats-actions {
-                grid-template-columns: 1fr;
-            }
-        }
+        /* ========== SCROLLBAR ========== */
         ::-webkit-scrollbar {
             width: 4px;
         }
@@ -1113,171 +1486,157 @@
             border-radius: 10px;
         }
 
-        /* Particles background */
-        #particles {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 0;
-            pointer-events: none;
-            overflow: hidden;
-        }
-        .particle {
-            position: absolute;
-            border-radius: 50%;
-            background: var(--primary);
-            opacity: 0.2;
-            animation: floatParticle linear infinite;
-        }
-        @keyframes floatParticle {
-            0% {
-                transform: translateY(100vh) rotate(0deg);
-                opacity: 0;
+        /* ========== RESPONSIVE ========== */
+        @media (max-width: 600px) {
+            .rooms-grid {
+                grid-template-columns: 1fr;
             }
-            10% {
-                opacity: 0.2;
+            .seats-grid {
+                grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
             }
-            90% {
-                opacity: 0.2;
+            .seats-actions {
+                grid-template-columns: 1fr;
             }
-            100% {
-                transform: translateY(-10vh) rotate(720deg);
-                opacity: 0;
+            .admin-grid {
+                grid-template-columns: 1fr;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .profile-stats {
+                grid-template-columns: 1fr 1fr;
+            }
+            .hud-health .bar {
+                width: 70px;
+            }
+            .top-header .brand {
+                font-size: 16px;
+            }
+            .bottom-nav .nav-item {
+                font-size: 10px;
+                min-width: 50px;
+            }
+            .bottom-nav .nav-item i {
+                font-size: 18px;
+            }
+            .game-logo {
+                max-width: 200px;
             }
         }
-        .bg-animation {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 0;
-            background: radial-gradient(ellipse at 20% 50%, rgba(212, 175, 55, 0.05) 0%, transparent 60%),
-                radial-gradient(ellipse at 80% 20%, rgba(212, 175, 55, 0.03) 0%, transparent 50%),
-                radial-gradient(ellipse at 50% 80%, rgba(212, 175, 55, 0.04) 0%, transparent 50%);
-            pointer-events: none;
+
+        @media (max-width: 400px) {
+            .top-header .user-id {
+                font-size: 11px;
+            }
+            .top-header .balance {
+                font-size: 12px;
+            }
         }
-        .back-btn {
-            padding: 12px;
-            border: none;
-            border-radius: var(--radius);
-            background: var(--bg-card);
-            color: var(--text-light);
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-            margin-top: 8px;
-            border: 1px solid rgba(212, 175, 55, 0.08);
-            font-family: 'Cairo', sans-serif;
-        }
-        .back-btn:active {
-            transform: scale(0.96);
-        }
-        .mt-8 {
-            margin-top: 8px;
-        }
+
+        /* ========== UTILITY ========== */
         .text-muted {
             color: var(--text-muted);
         }
         .text-center {
             text-align: center;
         }
-        .flex-center {
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .mt-8 {
+            margin-top: 8px;
+        }
+        .mb-8 {
+            margin-bottom: 8px;
+        }
+        .flex-1 {
+            flex: 1;
+        }
+        .hidden {
+            display: none !important;
         }
     </style>
 </head>
 <body>
 
-    <!-- Background -->
-    <div class="bg-animation"></div>
-    <div id="particles"></div>
-
-    <!-- Loading -->
-    <div id="loadingScreen" class="screen active">
-        <div class="spinner"></div>
-        <div class="text">🎮 جاري التحميل...</div>
-    </div>
-
-    <!-- Landscape Warning -->
+    <!-- ========== LANDSCAPE WARNING ========== -->
     <div class="landscape-warning" id="landscapeWarning">
         <div class="icon">🔄</div>
         <h2>يرجى تدوير الجهاز</h2>
         <p>المعركة تعمل في الوضع الأفقي فقط</p>
     </div>
 
-    <!-- Auth -->
-    <div id="authScreen" class="screen">
-        <div class="auth-box">
-            <div class="logo">🎮</div>
-            <h1>Battle Tanks</h1>
-            <p class="sub">ساحة المعركة الإلكترونية</p>
-            <button class="auth-btn telegram" id="telegramBtn">
-                <i class="fab fa-telegram-plane"></i> تسجيل الدخول عبر تيليغرام
-            </button>
-            <div class="auth-footer">
-                بتسجيل الدخول أنت توافق على <a href="#">شروط الخدمة</a>
-            </div>
-        </div>
+    <!-- ========== LOADING ========== -->
+    <div id="loadingScreen" class="screen active">
+        <div class="spinner"></div>
+        <div class="text">🎮 جاري التحميل...</div>
+        <div class="sub-text">جاري الاتصال بالخادم</div>
     </div>
 
-    <!-- Main -->
-    <div id="mainScreen" class="screen">
-        <div class="main-header">
-            <div class="brand">🎮 Battle Tanks</div>
-            <div class="user">
-                <div class="avatar" id="userAvatar"><span id="avatarText">👤</span></div>
-                <div>
-                    <div class="name" id="userName">اللاعب</div>
-                    <div class="balance">💰 <span id="userBalance">0</span> $</div>
+    <!-- ========== TOP HEADER ========== -->
+    <header class="top-header" id="topHeader">
+        <div class="brand">🎮 Battle Tanks</div>
+        <div class="user-info">
+            <div class="user-id">🆔 <span id="headerUserId">---</span></div>
+            <div class="balance">💰 <span id="headerBalance">0</span>$</div>
+        </div>
+    </header>
+
+    <!-- ========== AUTH SCREEN ========== -->
+    <div id="authScreen" class="screen">
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:20px;">
+            <div class="auth-box">
+                <div class="logo">🎮</div>
+                <h1>Battle Tanks</h1>
+                <p class="sub">ساحة المعركة الإلكترونية</p>
+
+                <input class="auth-input" id="authUserId" placeholder="أدخل معرف تيليغرام الخاص بك" type="text">
+                <button class="auth-btn telegram" id="authLoginBtn">
+                    <i class="fas fa-sign-in-alt"></i> تسجيل الدخول
+                </button>
+
+                <div class="auth-footer">
+                    المعرف موجود في رابط تيليغرام: <code style="color:var(--primary);">?user_id=XXXXXXXXX</code>
                 </div>
             </div>
         </div>
-        <div class="stats-grid">
-            <div class="stat-card"><div class="icon">🏆</div><div class="value" id="statWins">0</div><div class="label">انتصارات</div></div>
-            <div class="stat-card"><div class="icon">💀</div><div class="value" id="statKills">0</div><div class="label">إقصاءات</div></div>
-            <div class="stat-card"><div class="icon">🎯</div><div class="value" id="statElo">1000</div><div class="label">التصنيف</div></div>
-            <div class="stat-card"><div class="icon">⭐</div><div class="value" id="statRank">برونزي</div><div class="label">الرتبة</div></div>
-        </div>
-        <div class="action-grid">
-            <button class="action-btn primary" id="playBtn"><i class="fas fa-gamepad"></i> العب الآن</button>
-            <button class="action-btn" id="walletBtn"><i class="fas fa-wallet"></i> المحفظة</button>
-            <button class="action-btn" id="leaderboardBtn"><i class="fas fa-trophy"></i> المتصدرون</button>
-            <button class="action-btn admin" id="adminBtn" style="display:none;"><i class="fas fa-cog"></i> لوحة التحكم</button>
+    </div>
+
+    <!-- ========== MAIN SCREEN ========== -->
+    <div id="mainScreen" class="screen">
+        <div class="main-content">
+            <div class="game-logo" id="gameLogo">
+                <div class="placeholder">🎮</div>
+            </div>
+            <button class="play-btn" id="playBtn">
+                <i class="fas fa-gamepad"></i>
+                العب الآن
+            </button>
         </div>
     </div>
 
-    <!-- Lobby -->
+    <!-- ========== LOBBY SCREEN ========== -->
     <div id="lobbyScreen" class="screen">
         <div class="lobby-header">
             <h2>🏠 لوبي المعركة</h2>
             <div class="lobby-stats">
                 <span><i class="fas fa-users"></i> <span id="lobbyPlayers">0</span></span>
                 <span><i class="fas fa-door-open"></i> <span id="lobbyRooms">0</span></span>
-                <span><i class="fas fa-gamepad"></i> <span id="lobbyGames">0</span></span>
             </div>
         </div>
         <div class="rooms-grid" id="roomsGrid">
-            <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted);">
+            <div class="text-muted text-center" style="grid-column:1/-1;padding:40px;">
                 <i class="fas fa-spinner fa-spin" style="font-size:28px;display:block;margin-bottom:10px;"></i>
                 جاري تحميل الغرف...
             </div>
         </div>
-        <button class="back-btn" id="backFromLobby"><i class="fas fa-arrow-right"></i> العودة للرئيسية</button>
     </div>
 
-    <!-- Room Seats -->
-    <div id="roomSeatsScreen" class="screen">
+    <!-- ========== SEATS SCREEN ========== -->
+    <div id="seatsScreen" class="screen">
         <div class="seats-header">
-            <div>
+            <div class="info">
                 <h2 id="seatsRoomName">🏠 غرفة</h2>
-                <div class="info" id="seatsRoomInfo">سعر المقعد: 1$ | 0/8 لاعبين</div>
+                <div class="sub" id="seatsRoomInfo">سعر المقعد: 1$ | 0/8 لاعبين</div>
             </div>
-            <div class="info" id="seatsStatus">⏳ في الانتظار</div>
+            <div class="status-badge waiting" id="seatsStatus">⏳ في الانتظار</div>
         </div>
         <div class="seats-grid" id="seatsGrid">
             <div class="text-muted text-center" style="grid-column:1/-1;padding:40px;">جاري تحميل المقاعد...</div>
@@ -1289,14 +1648,74 @@
         </div>
     </div>
 
-    <!-- Game Overlay -->
+    <!-- ========== STATS SCREEN ========== -->
+    <div id="statsScreen" class="screen">
+        <div class="stats-content">
+            <div class="stats-grid">
+                <div class="stat-card"><div class="icon">🏆</div><div class="value" id="sWins">0</div><div class="label">انتصارات</div></div>
+                <div class="stat-card"><div class="icon">💀</div><div class="value" id="sKills">0</div><div class="label">إقصاءات</div></div>
+                <div class="stat-card"><div class="icon">🎯</div><div class="value" id="sElo">1000</div><div class="label">التصنيف</div></div>
+                <div class="stat-card"><div class="icon">⭐</div><div class="value" id="sRank">برونزي</div><div class="label">الرتبة</div></div>
+            </div>
+            <div class="leaderboard-box">
+                <h3><i class="fas fa-trophy"></i> المتصدرون</h3>
+                <div id="leaderboardList">
+                    <div class="text-muted text-center">جاري التحميل...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== PROFILE SCREEN ========== -->
+    <div id="profileScreen" class="screen">
+        <div class="profile-content">
+            <div class="profile-avatar" id="profileAvatar">👤</div>
+            <div class="profile-name" id="profileName">اللاعب</div>
+            <div class="profile-id">🆔 <span id="profileId">---</span></div>
+            <div class="profile-rank" id="profileRank" style="background:rgba(212,175,55,0.15);color:var(--primary);">برونزي</div>
+            <div class="profile-stats">
+                <div class="profile-stat"><div class="value" id="pWins">0</div><div class="label">🏆 انتصارات</div></div>
+                <div class="profile-stat"><div class="value" id="pKills">0</div><div class="label">💀 إقصاءات</div></div>
+                <div class="profile-stat"><div class="value" id="pGames">0</div><div class="label">🎮 مباريات</div></div>
+            </div>
+            <div style="margin-top:10px;color:var(--text-muted);font-size:14px;">
+                💰 الرصيد: <span style="color:var(--primary);font-weight:700;" id="pBalance">0</span>$
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== BOTTOM NAV ========== -->
+    <nav class="bottom-nav" id="bottomNav">
+        <button class="nav-item active" data-screen="mainScreen">
+            <i class="fas fa-home"></i>
+            <span>الرئيسية</span>
+        </button>
+        <button class="nav-item" data-screen="lobbyScreen">
+            <i class="fas fa-gamepad"></i>
+            <span>اللوبي</span>
+        </button>
+        <button class="nav-item" data-screen="statsScreen">
+            <i class="fas fa-chart-bar"></i>
+            <span>إحصائيات</span>
+        </button>
+        <button class="nav-item" data-screen="profileScreen">
+            <i class="fas fa-user"></i>
+            <span>ملفي</span>
+        </button>
+        <button class="nav-item admin-nav" id="adminNavBtn" style="display:none;">
+            <i class="fas fa-cog"></i>
+            <span>إدارة</span>
+        </button>
+    </nav>
+
+    <!-- ========== GAME OVERLAY ========== -->
     <div class="game-overlay" id="gameOverlay">
         <canvas id="gameCanvas"></canvas>
         <div class="game-hud">
             <div class="hud-top">
                 <div class="hud-left">
                     <div class="pname" id="gPlayerName">اللاعب</div>
-                    <div class="pbalance">💰 <span id="gBalance">0</span> $</div>
+                    <div class="pbalance">💰 <span id="gBalance">0</span>$</div>
                     <div class="hud-health">
                         <span>❤️</span>
                         <div class="bar"><div class="fill" id="healthBar" style="width:100%"></div></div>
@@ -1324,7 +1743,7 @@
         </div>
     </div>
 
-    <!-- Elimination -->
+    <!-- ========== ELIMINATION OVERLAY ========== -->
     <div class="elimination-overlay" id="eliminationOverlay">
         <div class="icon">💀</div>
         <div class="title">تم إقصاؤك!</div>
@@ -1332,7 +1751,7 @@
         <div class="timer" id="respawnTimer">5</div>
     </div>
 
-    <!-- Report -->
+    <!-- ========== REPORT OVERLAY ========== -->
     <div class="report-overlay" id="reportOverlay">
         <div class="report-box">
             <div class="icon" id="rIcon">🏆</div>
@@ -1352,85 +1771,111 @@
         </div>
     </div>
 
-    <!-- Admin Panel -->
+    <!-- ========== ADMIN PANEL ========== -->
     <div id="adminPanel" class="screen">
         <div class="admin-box">
             <div class="admin-header">
                 <h2><i class="fas fa-cog"></i> لوحة التحكم</h2>
                 <button class="admin-close" id="closeAdmin">✕ إغلاق</button>
             </div>
+
             <div class="admin-section">
-                <h3><i class="fas fa-server"></i> حالة الخادم</h3>
-                <div class="admin-stats" id="adminMonitoring">جاري التحميل...</div>
+                <h3><i class="fas fa-lock"></i> المصادقة الإدارية</h3>
+                <div class="admin-password-input">
+                    <input class="admin-input" id="adminPasswordInput" type="password" placeholder="أدخل كلمة المرور">
+                    <button class="admin-btn primary" id="adminLoginBtn">تسجيل الدخول</button>
+                </div>
+                <div id="adminLoginStatus" class="text-muted" style="margin-top:8px;font-size:13px;"></div>
             </div>
-            <div class="admin-section">
-                <h3><i class="fas fa-sliders-h"></i> إعدادات الخادم</h3>
-                <div class="admin-grid">
-                    <div>
-                        <label class="admin-label">وضع الصيانة</label>
-                        <div class="admin-toggle">
-                            <span id="maintenanceLabel">معطل</span>
-                            <div class="switch" id="maintenanceToggle"></div>
+
+            <div id="adminContent" style="display:none;">
+                <div class="admin-section">
+                    <h3><i class="fas fa-server"></i> حالة الخادم</h3>
+                    <div class="admin-stats" id="adminMonitoring">جاري التحميل...</div>
+                </div>
+
+                <div class="admin-section">
+                    <h3><i class="fas fa-sliders-h"></i> إعدادات الخادم</h3>
+                    <div class="admin-grid">
+                        <div>
+                            <label class="admin-label">وضع الصيانة</label>
+                            <div class="admin-toggle">
+                                <span id="maintenanceLabel">معطل</span>
+                                <div class="switch" id="maintenanceToggle"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="admin-label">نظام الحماية</label>
+                            <div class="admin-toggle">
+                                <span id="anticheatLabel">مفعل</span>
+                                <div class="switch active" id="anticheatToggle"></div>
+                            </div>
                         </div>
                     </div>
-                    <div>
-                        <label class="admin-label">نظام الحماية</label>
-                        <div class="admin-toggle">
-                            <span id="anticheatLabel">مفعل</span>
-                            <div class="switch active" id="anticheatToggle"></div>
-                        </div>
+                </div>
+
+                <div class="admin-section">
+                    <h3><i class="fas fa-door-open"></i> إعدادات الغرف</h3>
+                    <div class="admin-grid" id="roomSettingsGrid"></div>
+                </div>
+
+                <div class="admin-section">
+                    <h3><i class="fas fa-image"></i> الإعدادات البصرية</h3>
+                    <div class="admin-grid" id="visualSettingsGrid"></div>
+                </div>
+
+                <div class="admin-section">
+                    <h3><i class="fas fa-users-cog"></i> إدارة اللاعبين</h3>
+                    <div class="admin-grid">
+                        <div><label class="admin-label">معرف اللاعب</label><input class="admin-input" id="adminTargetUserId" placeholder="أدخل المعرف"></div>
+                        <div><label class="admin-label">المبلغ</label><input class="admin-input" id="adminAmount" type="number" placeholder="المبلغ"></div>
+                        <button class="admin-btn success" id="adminAddBalance">➕ إضافة رصيد</button>
+                        <button class="admin-btn danger" id="adminSubtractBalance">➖ سحب رصيد</button>
+                        <button class="admin-btn danger" id="adminKickPlayer">🚫 طرد لاعب</button>
+                        <button class="admin-btn danger" id="adminBanPlayer">⛔ حظر لاعب</button>
+                        <button class="admin-btn primary" id="adminSetAdmin">👑 ترقية/إزالة صلاحيات</button>
                     </div>
                 </div>
-            </div>
-            <div class="admin-section">
-                <h3><i class="fas fa-door-open"></i> إعدادات الغرف</h3>
-                <div class="admin-grid" id="roomSettingsGrid"></div>
-            </div>
-            <div class="admin-section">
-                <h3><i class="fas fa-image"></i> الإعدادات البصرية</h3>
-                <div class="admin-grid" id="visualSettingsGrid"></div>
-            </div>
-            <div class="admin-section">
-                <h3><i class="fas fa-users-cog"></i> إدارة اللاعبين</h3>
-                <div class="admin-grid">
-                    <div><label class="admin-label">معرف اللاعب</label><input class="admin-input" id="adminTargetUserId" placeholder="أدخل المعرف"></div>
-                    <div><label class="admin-label">المبلغ</label><input class="admin-input" id="adminAmount" type="number" placeholder="المبلغ"></div>
-                    <button class="admin-btn success" id="adminAddBalance">➕ إضافة رصيد</button>
-                    <button class="admin-btn danger" id="adminSubtractBalance">➖ سحب رصيد</button>
-                    <button class="admin-btn danger" id="adminKickPlayer">🚫 طرد لاعب</button>
-                    <button class="admin-btn danger" id="adminBanPlayer">⛔ حظر لاعب</button>
+
+                <div class="admin-section">
+                    <h3><i class="fas fa-chart-bar"></i> إحصائيات</h3>
+                    <button class="admin-btn primary" id="adminRefreshStats">🔄 تحديث الإحصائيات</button>
+                    <div class="admin-stats" id="adminStats" style="margin-top:10px;">جاري التحميل...</div>
                 </div>
-            </div>
-            <div class="admin-section">
-                <h3><i class="fas fa-chart-bar"></i> إحصائيات</h3>
-                <button class="admin-btn primary" id="adminRefreshStats">🔄 تحديث الإحصائيات</button>
-                <div class="admin-stats" id="adminStats" style="margin-top:10px;">جاري التحميل...</div>
-            </div>
-            <div class="admin-section">
-                <h3><i class="fas fa-database"></i> إدارة قاعدة البيانات</h3>
-                <div class="admin-grid">
-                    <button class="admin-btn primary" id="adminDbHealth">🔍 فحص قاعدة البيانات</button>
-                    <button class="admin-btn danger" id="adminForceReconnect">🔄 إعادة اتصال قسري</button>
+
+                <div class="admin-section">
+                    <h3><i class="fas fa-database"></i> إدارة قاعدة البيانات</h3>
+                    <div class="admin-grid">
+                        <button class="admin-btn primary" id="adminDbHealth">🔍 فحص قاعدة البيانات</button>
+                        <button class="admin-btn danger" id="adminForceReconnect">🔄 إعادة اتصال قسري</button>
+                    </div>
+                    <div class="admin-stats" id="adminDbStatus" style="margin-top:10px;">جاري التحميل...</div>
                 </div>
-                <div class="admin-stats" id="adminDbStatus" style="margin-top:10px;">جاري التحميل...</div>
-            </div>
-            <div class="admin-section" style="border-color:rgba(231,76,60,0.3);">
-                <h3 style="color:#e74c3c;"><i class="fas fa-exclamation-triangle"></i> منطقة الخطر</h3>
-                <button class="admin-btn danger" id="adminResetConfig">🔄 إعادة تعيين الإعدادات</button>
+
+                <div class="admin-section" style="border-color:rgba(231,76,60,0.3);">
+                    <h3 style="color:#e74c3c;"><i class="fas fa-exclamation-triangle"></i> منطقة الخطر</h3>
+                    <button class="admin-btn danger" id="adminResetConfig">🔄 إعادة تعيين الإعدادات</button>
+                </div>
             </div>
         </div>
     </div>
 
+    <!-- ============================================================ -->
+    <!-- ========== JAVASCRIPT ========== -->
+    <!-- ============================================================ -->
     <script>
         // ============================================
         // CONFIG
         // ============================================
         const CONFIG = {
             SERVER_URL: 'https://game1-duy1.onrender.com',
-            ADMIN_ID: '7011476249'
+            ADMIN_ID: '7011476249',
+            RECONNECT_DELAY: 2000,
+            MAX_RECONNECT_ATTEMPTS: 20,
+            CONNECTION_TIMEOUT: 30000
         };
 
-        console.log('🎮 Battle Tanks Royale v4.0.0');
+        console.log('🎮 Battle Tanks Royale v5.0.0');
         console.log('📡 Server:', CONFIG.SERVER_URL);
 
         // ============================================
@@ -1438,10 +1883,12 @@
         // ============================================
         const state = {
             user: null,
+            userId: null,
             balance: 0,
             elo: 1000,
             kills: 0,
             wins: 0,
+            gamesPlayed: 0,
             isAdmin: false,
             roomId: null,
             gameActive: false,
@@ -1452,13 +1899,15 @@
             socket: null,
             visualSettings: {},
             config: {},
-            reconnectToken: null,
             isAuthenticated: false,
             currentRoomData: null,
-            selectedSeat: null,
             roomJoined: false,
             gameStarting: false,
-            isInSeatsScreen: false
+            isInSeatsScreen: false,
+            reconnectAttempts: 0,
+            isReconnecting: false,
+            leaderboard: [],
+            adminLoggedIn: false
         };
 
         let gameScene = null;
@@ -1466,14 +1915,40 @@
         let joystickData = { x: 0, y: 0 };
         let moveInterval = null;
         let socket = null;
+        let reconnectTimer = null;
+
+        // ============================================
+        // DOM REFS
+        // ============================================
+        const $ = id => document.getElementById(id);
+        const screens = {
+            loading: $('loadingScreen'),
+            auth: $('authScreen'),
+            main: $('mainScreen'),
+            lobby: $('lobbyScreen'),
+            seats: $('seatsScreen'),
+            stats: $('statsScreen'),
+            profile: $('profileScreen'),
+            admin: $('adminPanel'),
+            game: $('gameOverlay'),
+            elimination: $('eliminationOverlay'),
+            report: $('reportOverlay')
+        };
 
         // ============================================
         // UI HELPERS
         // ============================================
         function showScreen(id) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            const el = document.getElementById(id);
-            if (el) el.classList.add('active');
+            Object.keys(screens).forEach(key => {
+                if (screens[key]) {
+                    screens[key].classList.toggle('active', key === id);
+                }
+            });
+            // تحديث التنقل السفلي
+            document.querySelectorAll('.bottom-nav .nav-item').forEach(item => {
+                const screenId = item.dataset.screen;
+                item.classList.toggle('active', screenId === id);
+            });
         }
 
         function showToast(msg, type = 'info') {
@@ -1485,13 +1960,15 @@
             t.textContent = msg;
             document.body.appendChild(t);
             setTimeout(() => {
-                t.style.animation = 'toastOut 0.3s ease';
+                t.style.opacity = '0';
+                t.style.transform = 'translateX(-50%) translateY(-20px)';
+                t.style.transition = 'all 0.3s';
                 setTimeout(() => t.remove(), 300);
-            }, 4000);
+            }, 3500);
         }
 
         function showLoading(show) {
-            document.getElementById('loadingScreen').classList.toggle('active', show);
+            screens.loading.classList.toggle('active', show);
         }
 
         function getRank(elo) {
@@ -1504,47 +1981,133 @@
             return { rank: 'خارق', color: '#ff00ff' };
         }
 
+        function updateHeaderUI() {
+            $('headerUserId').textContent = state.userId || '---';
+            $('headerBalance').textContent = state.balance || 0;
+        }
+
         // ============================================
-        // SOCKET CONNECTION
+        // SOCKET CONNECTION WITH ROBUST RECONNECT
         // ============================================
         function connectSocket() {
             return new Promise((resolve, reject) => {
                 try {
+                    if (socket && socket.connected) {
+                        resolve(socket);
+                        return;
+                    }
+
+                    if (state.isReconnecting) {
+                        console.log('🔄 Already reconnecting, waiting...');
+                        const checkInterval = setInterval(() => {
+                            if (!state.isReconnecting && socket && socket.connected) {
+                                clearInterval(checkInterval);
+                                resolve(socket);
+                            }
+                        }, 500);
+                        return;
+                    }
+
+                    console.log('🔌 Connecting to server...');
+                    showLoading(true);
+
                     socket = io(CONFIG.SERVER_URL, {
                         transports: ['websocket', 'polling'],
                         reconnection: true,
-                        reconnectionAttempts: Infinity,
-                        reconnectionDelay: 1000,
+                        reconnectionAttempts: CONFIG.MAX_RECONNECT_ATTEMPTS,
+                        reconnectionDelay: CONFIG.RECONNECT_DELAY,
                         reconnectionDelayMax: 10000,
-                        timeout: 15000,
+                        timeout: CONFIG.CONNECTION_TIMEOUT,
                         pingTimeout: 60000,
-                        pingInterval: 25000
+                        pingInterval: 25000,
+                        forceNew: true
                     });
 
+                    let connectionTimer = setTimeout(() => {
+                        if (!socket.connected) {
+                            console.error('❌ Connection timeout');
+                            reject(new Error('Connection timeout'));
+                        }
+                    }, CONFIG.CONNECTION_TIMEOUT);
+
                     socket.on('connect', () => {
+                        clearTimeout(connectionTimer);
                         console.log('✅ Connected to server');
                         state.socket = socket;
+                        state.isReconnecting = false;
+                        state.reconnectAttempts = 0;
+                        showLoading(false);
                         showToast('✅ تم الاتصال بالخادم', 'success');
                         resolve(socket);
                     });
 
                     socket.on('connect_error', (err) => {
                         console.error('❌ Connection error:', err.message);
-                        showToast('⚠️ فشل الاتصال بالخادم، جاري المحاولة...', 'warning');
+                        state.reconnectAttempts++;
+                        if (state.reconnectAttempts > 3) {
+                            showToast(`⚠️ فشل الاتصال (محاولة ${state.reconnectAttempts})`, 'warning');
+                        }
+                        if (state.reconnectAttempts > 10) {
+                            showToast('❌ فشل الاتصال بالخادم بعد عدة محاولات', 'error');
+                            showScreen('authScreen');
+                        }
                     });
 
-                    socket.on('disconnect', () => {
-                        console.log('🔌 Disconnected');
-                        showToast('⚠️ انقطع الاتصال بالخادم', 'warning');
+                    socket.on('disconnect', (reason) => {
+                        console.log('🔌 Disconnected:', reason);
+                        if (reason === 'io server disconnect') {
+                            // الخادم قطع الاتصال عمداً
+                            showToast('⚠️ تم قطع الاتصال بالخادم', 'warning');
+                        } else {
+                            showToast('⚠️ انقطع الاتصال، جاري إعادة المحاولة...', 'warning');
+                            state.isReconnecting = true;
+                            // محاولة إعادة الاتصال فوراً
+                            setTimeout(() => {
+                                if (!socket.connected) {
+                                    socket.connect();
+                                }
+                            }, 1000);
+                        }
                     });
 
-                    socket.on('reconnect', () => {
-                        console.log('🔄 Reconnected');
+                    socket.on('reconnect', (attempt) => {
+                        console.log(`🔄 Reconnected after ${attempt} attempts`);
+                        state.isReconnecting = false;
+                        state.reconnectAttempts = 0;
                         showToast('✅ تم إعادة الاتصال', 'success');
-                        if (state.user) authenticate();
+                        if (state.isAuthenticated && state.userId) {
+                            authenticate(state.userId);
+                        }
+                        // إعادة الاشتراك في الغرفة إذا كان في غرفة
+                        if (state.roomId) {
+                            socket.emit('join_room', { roomId: state.roomId });
+                        }
+                    });
+
+                    socket.on('reconnect_attempt', (attempt) => {
+                        console.log(`🔄 Reconnection attempt ${attempt}...`);
+                        if (attempt > 5) {
+                            showToast(`⏳ جاري إعادة الاتصال (محاولة ${attempt})`, 'warning');
+                        }
+                    });
+
+                    socket.on('reconnect_error', (err) => {
+                        console.error('❌ Reconnection error:', err);
+                    });
+
+                    socket.on('reconnect_failed', () => {
+                        console.error('❌ Reconnection failed');
+                        state.isReconnecting = false;
+                        showToast('❌ فشل إعادة الاتصال بالخادم', 'error');
+                        showScreen('authScreen');
+                    });
+
+                    socket.on('ping', () => {
+                        // الحفاظ على الاتصال
                     });
 
                 } catch (e) {
+                    console.error('❌ Socket creation error:', e);
                     reject(e);
                 }
             });
@@ -1553,41 +2116,32 @@
         // ============================================
         // AUTHENTICATION
         // ============================================
-        function authenticate() {
-            if (!socket) return;
-
-            const params = new URLSearchParams(window.location.search);
-            let telegramId = params.get('user_id') || params.get('telegram_id');
-            let username = params.get('username') || 'لاعب';
-            let firstName = params.get('first_name') || '';
-            let lastName = params.get('last_name') || '';
-            let photoUrl = params.get('photo_url') || '';
-
-            const saved = localStorage.getItem('btUser');
-            if (saved && !telegramId) {
-                try {
-                    const d = JSON.parse(saved);
-                    if (d.telegramId) {
-                        telegramId = d.telegramId;
-                        username = d.username || username;
-                        firstName = d.firstName || firstName;
-                        lastName = d.lastName || lastName;
-                        photoUrl = d.photoUrl || photoUrl;
-                    }
-                } catch (e) {}
+        function authenticate(userId) {
+            if (!socket) {
+                console.error('❌ Socket not available');
+                return;
             }
 
-            const deviceId = localStorage.getItem('btDevice') || 'd_' + Date.now() + '_' + Math.random().toString(36).slice(2,
-            6);
-            localStorage.setItem('btDevice', deviceId);
-
-            if (telegramId) {
-                socket.emit('auth', { telegramId, username, firstName, lastName, photoUrl, deviceId });
-            } else {
-                // No guest mode - show error
-                showToast('❌ يرجى استخدام تيليغرام لتسجيل الدخول', 'error');
-                showLoading(false);
+            if (!userId) {
+                // محاولة الحصول من الرابط
+                const params = new URLSearchParams(window.location.search);
+                userId = params.get('user_id');
+                if (!userId) {
+                    showToast('⚠️ يرجى إدخال معرف المستخدم', 'warning');
+                    showScreen('authScreen');
+                    return;
+                }
             }
+
+            state.userId = userId;
+            console.log('🔐 Authenticating with ID:', userId);
+
+            // حفظ في localStorage
+            try {
+                localStorage.setItem('btUserId', userId);
+            } catch (e) {}
+
+            socket.emit('auth', { telegramId: userId });
         }
 
         // ============================================
@@ -1600,34 +2154,29 @@
             socket.on('auth_success', (data) => {
                 console.log('✅ Auth success:', data);
                 state.user = data;
-                state.balance = data.balance;
-                state.elo = data.elo;
+                state.userId = data.userId || data.telegramId;
+                state.balance = data.balance || 0;
+                state.elo = data.elo || 1000;
                 state.kills = data.kills || 0;
                 state.wins = data.wins || 0;
+                state.gamesPlayed = data.gamesPlayed || 0;
                 state.isAdmin = data.isAdmin || false;
-                state.reconnectToken = data.reconnectToken;
                 state.isAuthenticated = true;
 
-                // Check if user is admin
-                if (data.telegramId === CONFIG.ADMIN_ID) {
-                    state.isAdmin = true;
-                }
-
-                try {
-                    localStorage.setItem('btUser', JSON.stringify({
-                        telegramId: data.telegramId,
-                        username: data.username,
-                        firstName: data.firstName,
-                        lastName: data.lastName,
-                        photoUrl: data.photoUrl
-                    }));
-                } catch (e) {}
-
+                // تحديث الواجهة
+                updateHeaderUI();
                 updateMainUI(data);
+                updateStatsUI(data);
+                updateProfileUI(data);
+
                 showLoading(false);
                 showScreen('mainScreen');
 
-                if (state.isAdmin) document.getElementById('adminBtn').style.display = 'flex';
+                // إظهار زر الإدارة للمدير
+                if (state.isAdmin) {
+                    document.getElementById('adminNavBtn').style.display = 'flex';
+                }
+
                 showToast('👋 مرحباً ' + (data.username || 'اللاعب'), 'success');
             });
 
@@ -1637,13 +2186,35 @@
                 showScreen('authScreen');
             });
 
+            // --- VISUAL SETTINGS ---
+            socket.on('visual_settings', (data) => {
+                state.visualSettings = data || {};
+                updateAppearance();
+            });
+
+            socket.on('appearance_update', (data) => {
+                state.config.appearance = data || {};
+                updateAppearance();
+            });
+
+            // --- SERVER CONFIG ---
+            socket.on('server_config', (data) => {
+                state.config = data || {};
+                updateAppearance();
+            });
+
             // --- LOBBY ---
             socket.on('lobby_joined', (data) => {
-                state.balance = data.balance;
-                state.elo = data.elo;
-                state.visualSettings = data.visualSettings || {};
+                state.balance = data.balance || 0;
+                state.elo = data.elo || 1000;
                 state.config = data.config || {};
-                updateMainUI({ balance: data.balance, elo: data.elo });
+                state.visualSettings = data.visualSettings || {};
+                updateHeaderUI();
+                updateAppearance();
+                // تحديث الإحصائيات
+                if (data.userId) {
+                    fetchUserData(data.userId);
+                }
             });
 
             socket.on('rooms_list', (data) => {
@@ -1651,31 +2222,39 @@
             });
 
             socket.on('lobby_stats', (data) => {
-                document.getElementById('lobbyPlayers').textContent = data.totalPlayers || 0;
-                document.getElementById('lobbyRooms').textContent = data.totalRooms || 0;
-                document.getElementById('lobbyGames').textContent = data.totalGames || 0;
+                $('lobbyPlayers').textContent = data.totalPlayers || 0;
+                $('lobbyRooms').textContent = data.totalRooms || 0;
             });
 
+            socket.on('room_created', (data) => {
+                showToast(`🏠 تم إنشاء غرفة جديدة: ${data.name}`, 'info');
+                socket.emit('list_rooms');
+            });
+
+            // --- ROOM ---
             socket.on('room_joined', (data) => {
                 state.roomId = data.roomId;
                 state.roomJoined = true;
                 state.currentRoomData = data;
+                state.balance = data.balance || state.balance;
+                updateHeaderUI();
                 showToast(data.message || '✅ تم الانضمام للغرفة', 'success');
-                // Show seats screen
-                showRoomSeats(data.roomId);
+                showRoomSeats(data);
             });
 
             socket.on('room_left', (data) => {
                 state.roomId = null;
                 state.roomJoined = false;
                 state.currentRoomData = null;
-                state.selectedSeat = null;
-                showToast(data.message || '🚪 تم مغادرة الغرفة', 'info');
-                if (state.isInSeatsScreen) {
-                    state.isInSeatsScreen = false;
-                    showScreen('lobbyScreen');
-                    socket.emit('list_rooms');
+                state.gameStarting = false;
+                state.isInSeatsScreen = false;
+                if (data && data.refunded) {
+                    state.balance = data.refunded || state.balance;
+                    updateHeaderUI();
                 }
+                showToast(data?.message || '🚪 تم مغادرة الغرفة', 'info');
+                showScreen('lobbyScreen');
+                socket.emit('list_rooms');
             });
 
             socket.on('room_update', (data) => {
@@ -1696,20 +2275,16 @@
                 }
             });
 
-            socket.on('room_created', (data) => {
-                showToast(`🏠 تم إنشاء غرفة جديدة: ${data.name}`, 'info');
-                socket.emit('list_rooms');
-            });
-
-            // --- GAME START COUNTDOWN ---
+            // --- GAME COUNTDOWN ---
             socket.on('game_countdown', (data) => {
                 state.gameStarting = true;
                 showToast(`⏳ تبدأ المعركة خلال ${data.seconds} ثواني...`, 'warning');
-                document.getElementById('seatsStatus').textContent = `⏳ تبدأ خلال ${data.seconds}s`;
-                document.getElementById('seatsJoinBtn').disabled = true;
-                document.getElementById('seatsLeaveBtn').disabled = true;
-                document.getElementById('seatsJoinBtn').style.opacity = '0.5';
-                document.getElementById('seatsLeaveBtn').style.opacity = '0.5';
+                $('seatsStatus').textContent = `⏳ تبدأ خلال ${data.seconds}s`;
+                $('seatsStatus').className = 'status-badge starting';
+                $('seatsJoinBtn').disabled = true;
+                $('seatsLeaveBtn').disabled = true;
+                $('seatsJoinBtn').style.opacity = '0.5';
+                $('seatsLeaveBtn').style.opacity = '0.5';
             });
 
             // --- GAME START ---
@@ -1718,6 +2293,7 @@
                 state.roomJoined = false;
                 state.isInSeatsScreen = false;
 
+                // التحقق من وضع الشاشة
                 if (window.innerHeight > window.innerWidth) {
                     document.getElementById('landscapeWarning').style.display = 'flex';
                     const check = setInterval(() => {
@@ -1738,7 +2314,7 @@
             });
 
             socket.on('player_moved', (data) => {
-                if (gameScene && gameScene.gameActive && data.userId !== state.user?.userId) {
+                if (gameScene && gameScene.gameActive && data.userId !== state.userId) {
                     const target = new THREE.Vector3(data.position.x, 0, data.position.z);
                     gameScene.targetPositions.set(data.userId, target);
                     const tank = gameScene.tanks.get(data.userId);
@@ -1766,13 +2342,13 @@
                         gameScene.targetPositions.delete(data.userId);
                     }
                     state.aliveCount = data.aliveCount || state.aliveCount - 1;
-                    document.getElementById('aliveCount').textContent = state.aliveCount;
+                    $('aliveCount').textContent = state.aliveCount;
 
-                    const feed = document.getElementById('killFeed');
+                    const feed = $('killFeed');
                     const item = document.createElement('div');
                     item.className = 'item';
-                    const k = data.killerId === state.user?.userId ? 'أنت' : 'لاعب';
-                    const t = data.userId === state.user?.userId ? 'أنت' : 'لاعب';
+                    const k = data.killerId === state.userId ? 'أنت' : 'لاعب';
+                    const t = data.userId === state.userId ? 'أنت' : 'لاعب';
                     item.innerHTML = `<span class="k">${k}</span> 💥 أقصى <span class="t">${t}</span>`;
                     feed.prepend(item);
                     setTimeout(() => item.remove(), 3000);
@@ -1782,9 +2358,9 @@
             socket.on('you_were_eliminated', () => {
                 state.isEliminated = true;
                 state.gameActive = false;
-                const overlay = document.getElementById('eliminationOverlay');
+                const overlay = screens.elimination;
                 overlay.classList.add('active');
-                document.getElementById('respawnTimer').textContent = '5';
+                $('respawnTimer').textContent = '5';
                 if (gameScene) gameScene.cameraShake = 1.5;
 
                 let count = 5;
@@ -1797,13 +2373,13 @@
                         state.gameActive = true;
                         showToast('🔄 تم إحياؤك!', 'success');
                     } else {
-                        document.getElementById('respawnTimer').textContent = count;
+                        $('respawnTimer').textContent = count;
                     }
                 }, 1000);
             });
 
             socket.on('player_respawned', (data) => {
-                if (gameScene && gameScene.gameActive && data.userId !== state.user?.userId) {
+                if (gameScene && gameScene.gameActive && data.userId !== state.userId) {
                     const tank = gameScene.tanks.get(data.userId);
                     const pos = new THREE.Vector3(data.position.x, 0, data.position.z);
                     if (tank) {
@@ -1820,9 +2396,9 @@
             });
 
             socket.on('health_update', (data) => {
-                if (data.userId === state.user?.userId) {
-                    document.getElementById('healthBar').style.width = data.health + '%';
-                    document.getElementById('healthText').textContent = data.health;
+                if (data.userId === state.userId) {
+                    $('healthBar').style.width = data.health + '%';
+                    $('healthText').textContent = data.health;
                     if (data.damage > 0 && gameScene) {
                         gameScene.cameraShake = Math.min(1, data.damage / 100);
                     }
@@ -1831,11 +2407,11 @@
 
             socket.on('alive_count_update', (data) => {
                 state.aliveCount = data.alive;
-                document.getElementById('aliveCount').textContent = data.alive;
+                $('aliveCount').textContent = data.alive;
             });
 
             socket.on('kill_feed_update', (data) => {
-                const feed = document.getElementById('killFeed');
+                const feed = $('killFeed');
                 feed.innerHTML = '';
                 (data.kills || []).forEach(kill => {
                     const item = document.createElement('div');
@@ -1848,17 +2424,21 @@
             });
 
             socket.on('balance_update', (data) => {
-                state.balance = data.balance;
-                document.getElementById('gBalance').textContent = data.balance;
-                document.getElementById('userBalance').textContent = data.balance;
+                state.balance = data.balance || 0;
+                updateHeaderUI();
+                $('gBalance').textContent = state.balance;
+                $('pBalance').textContent = state.balance;
                 if (data.kills !== undefined) {
                     state.killCount = data.kills;
-                    document.getElementById('killCount').textContent = data.kills;
+                    $('killCount').textContent = data.kills;
                 }
                 if (data.reward) showToast(`💰 تم إضافة ${data.reward}$ ${data.reason || ''}`, 'success');
                 if (data.elo) {
                     state.elo = data.elo;
-                    updateMainUI({ elo: data.elo, rank: data.rank });
+                    const rank = getRank(data.elo);
+                    $('sElo').textContent = data.elo;
+                    $('sRank').textContent = rank.rank;
+                    $('sRank').style.color = rank.color;
                 }
             });
 
@@ -1866,16 +2446,16 @@
                 state.gameActive = false;
                 if (gameScene) gameScene.gameActive = false;
 
-                const isWinner = data.winner === state.user?.userId;
-                document.getElementById('rIcon').textContent = isWinner ? '🏆' : '💪';
-                document.getElementById('rTitle').textContent = isWinner ? '🎉 أنت الفائز!' : 'انتهت المعركة!';
-                document.getElementById('rSubtitle').textContent = `جولة #${state.gameRound} - ${isWinner ? 'مبروك!' : 'حاول مرة أخرى'}`;
-                document.getElementById('rKills').textContent = state.killCount || 0;
-                document.getElementById('rReward').textContent = data.winReward || 0;
-                document.getElementById('rDuration').textContent = data.duration || 0;
-                document.getElementById('rPlace').textContent = isWinner ? '#1' : `#${data.totalPlayers || 0}`;
+                const isWinner = data.winner === state.userId;
+                $('rIcon').textContent = isWinner ? '🏆' : '💪';
+                $('rTitle').textContent = isWinner ? '🎉 أنت الفائز!' : 'انتهت المعركة!';
+                $('rSubtitle').textContent = `جولة #${state.gameRound} - ${isWinner ? 'مبروك!' : 'حاول مرة أخرى'}`;
+                $('rKills').textContent = state.killCount || 0;
+                $('rReward').textContent = data.winReward || 0;
+                $('rDuration').textContent = data.duration || 0;
+                $('rPlace').textContent = isWinner ? '#1' : `#${data.totalPlayers || 0}`;
 
-                const feedContainer = document.getElementById('rKillFeed');
+                const feedContainer = $('rKillFeed');
                 if (data.killFeed && data.killFeed.length > 0) {
                     feedContainer.innerHTML = data.killFeed.map(k =>
                         `<div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
@@ -1886,33 +2466,45 @@
                     feedContainer.innerHTML = '<div class="text-muted text-center">لا توجد إقصاءات</div>';
                 }
 
-                document.getElementById('gameOverlay').classList.remove('active');
-                document.getElementById('reportOverlay').classList.add('active');
+                screens.game.classList.remove('active');
+                screens.report.classList.add('active');
 
                 if (isWinner) showToast('🎉 مبروك! أنت الفائز!', 'success');
             });
 
             // --- STATS ---
             socket.on('stats_update', (data) => {
-                state.balance = data.balance;
-                state.elo = data.elo;
+                state.balance = data.balance || 0;
+                state.elo = data.elo || 1000;
                 state.kills = data.kills || 0;
                 state.wins = data.wins || 0;
-                updateMainUI(data);
+                state.gamesPlayed = data.gamesPlayed || 0;
+                updateStatsUI(data);
+                updateProfileUI(data);
+                updateHeaderUI();
             });
 
             socket.on('leaderboard_update', (data) => {
-                if (data.players && data.players.length > 0) {
-                    const top = data.players.slice(0, 10).map((p, i) =>
-                        `${i+1}. ${p.username} - ⭐${p.elo} - 💀${p.kills}`
-                    ).join('\n');
-                    showToast(`🏆 المتصدرون:\n${top}`, 'info');
-                } else {
-                    showToast('🏆 لا يوجد متصدرون', 'info');
-                }
+                state.leaderboard = data.players || [];
+                renderLeaderboard(state.leaderboard);
             });
 
             // --- ADMIN ---
+            socket.on('admin_login_success', (data) => {
+                state.adminLoggedIn = true;
+                showToast('✅ ' + data.message, 'success');
+                $('adminLoginStatus').textContent = '✅ تم تسجيل الدخول بنجاح';
+                $('adminLoginStatus').style.color = '#2ecc71';
+                $('adminContent').style.display = 'block';
+                loadAdminPanel();
+            });
+
+            socket.on('admin_error', (data) => {
+                showToast('❌ ' + data.message, 'error');
+                $('adminLoginStatus').textContent = '❌ ' + data.message;
+                $('adminLoginStatus').style.color = '#e74c3c';
+            });
+
             socket.on('admin_config', (data) => {
                 state.config = data;
                 updateAdminUI(data);
@@ -1926,7 +2518,7 @@
             });
 
             socket.on('admin_monitoring', (data) => {
-                const box = document.getElementById('adminMonitoring');
+                const box = $('adminMonitoring');
                 box.innerHTML = `
                     👥 متصلون: ${data.monitoring?.connections?.active || 0}<br>
                     🎮 مباريات نشطة: ${data.monitoring?.games?.active || 0}<br>
@@ -1939,7 +2531,7 @@
             });
 
             socket.on('admin_stats', (data) => {
-                const box = document.getElementById('adminStats');
+                const box = $('adminStats');
                 if (data.stats) {
                     box.innerHTML = `
                         👥 إجمالي اللاعبين: ${data.stats.totalUsers || 0}<br>
@@ -1961,65 +2553,88 @@
             });
 
             socket.on('admin_message', (data) => showToast(data.message, data.type || 'info'));
-            socket.on('admin_error', (data) => showToast('❌ ' + data.message, 'error'));
 
             // --- ERRORS ---
             socket.on('error', (data) => showToast('❌ ' + data.message, 'error'));
-            socket.on('kicked', (data) => { showToast('🚫 ' + (data.reason || 'تم طردك'), 'error');
-                exitGame(); });
-            socket.on('banned', (data) => { showToast('⛔ ' + (data.reason || 'تم حظرك'), 'error');
-                exitGame(); });
+            socket.on('kicked', (data) => {
+                showToast('🚫 ' + (data.reason || 'تم طردك'), 'error');
+                exitGame();
+            });
+            socket.on('banned', (data) => {
+                showToast('⛔ ' + (data.reason || 'تم حظرك'), 'error');
+                exitGame();
+            });
         }
 
         // ============================================
         // UI UPDATES
         // ============================================
         function updateMainUI(data) {
-            document.getElementById('userName').textContent = data.username || 'اللاعب';
-            document.getElementById('userBalance').textContent = data.balance || 0;
-            document.getElementById('statWins').textContent = data.wins || 0;
-            document.getElementById('statKills').textContent = data.kills || 0;
-            document.getElementById('statElo').textContent = data.elo || 1000;
+            // تحديث الإحصائيات في الصفحة الرئيسية
+        }
 
+        function updateStatsUI(data) {
+            $('sWins').textContent = data.wins || 0;
+            $('sKills').textContent = data.kills || 0;
+            $('sElo').textContent = data.elo || 1000;
             const rank = getRank(data.elo || 1000);
-            document.getElementById('statRank').textContent = rank.rank;
-            document.getElementById('statRank').style.color = rank.color;
+            $('sRank').textContent = rank.rank;
+            $('sRank').style.color = rank.color;
+        }
 
-            const avatar = document.getElementById('userAvatar');
+        function updateProfileUI(data) {
+            $('profileName').textContent = data.username || 'اللاعب';
+            $('profileId').textContent = data.userId || state.userId || '---';
+            $('pWins').textContent = data.wins || 0;
+            $('pKills').textContent = data.kills || 0;
+            $('pGames').textContent = data.gamesPlayed || 0;
+            $('pBalance').textContent = data.balance || 0;
+            const rank = getRank(data.elo || 1000);
+            $('profileRank').textContent = rank.rank;
+            $('profileRank').style.background = `rgba(212,175,55,0.15)`;
+            $('profileRank').style.color = rank.color;
             if (data.photoUrl) {
-                avatar.innerHTML = `<img src="${data.photoUrl}" alt="avatar">`;
+                $('profileAvatar').innerHTML = `<img src="${data.photoUrl}" alt="avatar">`;
             } else {
-                const initial = (data.username || 'اللاعب')[0].toUpperCase();
-                avatar.innerHTML = `<span id="avatarText">${initial}</span>`;
+                $('profileAvatar').textContent = '👤';
             }
-            document.getElementById('gPlayerName').textContent = data.username || 'اللاعب';
-            document.getElementById('gBalance').textContent = data.balance || 0;
+        }
+
+        function updateAppearance() {
+            const appearance = state.config?.appearance || {};
+            const logo = appearance.gameLogo || state.visualSettings?.game_logo?.imageUrl || null;
+            const logoEl = $('gameLogo');
+            if (logo) {
+                logoEl.innerHTML = `<img src="${logo}" alt="شعار اللعبة">`;
+            } else {
+                logoEl.innerHTML = `<div class="placeholder">🎮</div>`;
+            }
         }
 
         function renderRooms(rooms) {
-            const grid = document.getElementById('roomsGrid');
+            const grid = $('roomsGrid');
             if (!rooms || rooms.length === 0) {
                 grid.innerHTML =
                     `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted);">
                     <i class="fas fa-door-open" style="font-size:28px;display:block;margin-bottom:10px;"></i>
-                    لا توجد غرف متاحة
+                    لا توجد غرف متاحة حالياً
                 </div>`;
                 return;
             }
 
-            // Filter: show only waiting rooms, one per type
+            // عرض غرفة واحدة من كل نوع
             const waitingRooms = rooms.filter(r => r.status === 'waiting');
             const uniqueTypes = {};
-            const filteredRooms = [];
+            const filtered = [];
 
             waitingRooms.forEach(room => {
                 if (!uniqueTypes[room.type]) {
                     uniqueTypes[room.type] = true;
-                    filteredRooms.push(room);
+                    filtered.push(room);
                 }
             });
 
-            if (filteredRooms.length === 0) {
+            if (filtered.length === 0) {
                 grid.innerHTML =
                     `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted);">
                     <i class="fas fa-clock" style="font-size:28px;display:block;margin-bottom:10px;"></i>
@@ -2028,7 +2643,7 @@
                 return;
             }
 
-            grid.innerHTML = filteredRooms.map(room => {
+            grid.innerHTML = filtered.map(room => {
                 const pct = (room.players / room.maxSeats) * 100;
                 const full = room.players >= room.maxSeats;
                 return `
@@ -2049,37 +2664,40 @@
         }
 
         function selectRoom(roomId) {
-            if (!socket || !state.user) { showToast('⚠️ يرجى تسجيل الدخول', 'warning'); return; }
-            if (state.roomId) { showToast('⚠️ أنت بالفعل في غرفة', 'warning'); return; }
+            if (!socket || !state.userId) {
+                showToast('⚠️ يرجى تسجيل الدخول', 'warning');
+                return;
+            }
+            if (state.roomId) {
+                showToast('⚠️ أنت بالفعل في غرفة', 'warning');
+                return;
+            }
             socket.emit('join_room', { roomId });
         }
 
-        function showRoomSeats(roomId) {
+        function showRoomSeats(data) {
             state.isInSeatsScreen = true;
-            showScreen('roomSeatsScreen');
-            document.getElementById('seatsJoinBtn').disabled = false;
-            document.getElementById('seatsLeaveBtn').disabled = false;
-            document.getElementById('seatsJoinBtn').style.opacity = '1';
-            document.getElementById('seatsLeaveBtn').style.opacity = '1';
+            showScreen('seats');
+            $('seatsJoinBtn').disabled = false;
+            $('seatsLeaveBtn').disabled = false;
+            $('seatsJoinBtn').style.opacity = '1';
+            $('seatsLeaveBtn').style.opacity = '1';
 
-            // Request room details
-            socket.emit('list_rooms');
-            // Get room data from state
-            const room = state.currentRoomData;
-            if (room) {
-                document.getElementById('seatsRoomName').textContent = `🏠 ${room.roomName || 'غرفة'}`;
-                document.getElementById('seatsRoomInfo').textContent =
-                    `سعر المقعد: ${room.seatPrice || 1}$ | ${room.playersCount || 0}/${room.maxSeats || 8} لاعبين`;
-                document.getElementById('seatsStatus').textContent = state.gameStarting ? '⏳ تبدأ الجولة...' : '⏳ في الانتظار';
-                renderSeats(room);
-            }
+            const room = data;
+            $('seatsRoomName').textContent = `🏠 ${room.roomName || 'غرفة'}`;
+            $('seatsRoomInfo').textContent =
+                `سعر المقعد: ${room.seatPrice || 1}$ | ${room.playersCount || 0}/${room.maxSeats || 8} لاعبين`;
+            $('seatsStatus').textContent = state.gameStarting ? '⏳ تبدأ الجولة...' : '⏳ في الانتظار';
+            $('seatsStatus').className = `status-badge ${state.gameStarting ? 'starting' : 'waiting'}`;
+
+            renderSeats(room);
         }
 
         function renderSeats(roomData) {
-            const grid = document.getElementById('seatsGrid');
+            const grid = $('seatsGrid');
             const maxSeats = roomData.maxSeats || 8;
             const players = roomData.players || [];
-            const myUserId = state.user?.userId;
+            const myUserId = state.userId;
 
             grid.innerHTML = '';
 
@@ -2089,32 +2707,34 @@
                 const isYourSeat = isOccupied && player.userId === myUserId;
 
                 const seatDiv = document.createElement('div');
-                seatDiv.className = `seat-item ${isYourSeat ? 'your-seat' : (isOccupied ? 'occupied' : 'empty')}`;
+                seatDiv.className = `seat-item ${isYourSeat ? 'your' : (isOccupied ? 'occupied' : 'empty')}`;
 
                 if (!isOccupied && !state.gameStarting && !state.roomJoined) {
                     seatDiv.style.cursor = 'pointer';
                     seatDiv.onclick = () => {
-                        if (state.gameStarting) { showToast('⏳ الجولة تبدأ، لا يمكن حجز مقعد', 'warning'); return; }
+                        if (state.gameStarting) {
+                            showToast('⏳ الجولة تبدأ، لا يمكن حجز مقعد', 'warning');
+                            return;
+                        }
                         socket.emit('join_room', { roomId: state.roomId });
                     };
                 }
 
                 seatDiv.innerHTML = `
-                    <div class="seat-number">#${i + 1}</div>
-                    ${isOccupied ? `<div class="seat-name">${player.username || player.firstName || 'لاعب'}</div>` : '<div class="seat-name" style="color:var(--text-muted);">فارغ</div>'}
-                    <div class="status-badge ${isYourSeat ? 'your' : (isOccupied ? 'occupied' : 'empty')}">
+                    <div class="num">#${i + 1}</div>
+                    ${isOccupied ? `<div class="name">${player.username || player.firstName || 'لاعب'}</div>` : '<div class="name" style="color:var(--text-muted);">فارغ</div>'}
+                    <div class="status-tag ${isYourSeat ? 'your' : (isOccupied ? 'occupied' : 'empty')}">
                         ${isYourSeat ? '⭐ أنت' : (isOccupied ? 'محجوز' : 'متاح')}
                     </div>
-                    ${isYourSeat ? '<div class="lock-icon">🔒</div>' : ''}
                 `;
 
                 grid.appendChild(seatDiv);
             }
 
-            // Update actions
+            // تحديث الأزرار
             const hasSeat = players.some(p => p.userId === myUserId);
-            document.getElementById('seatsJoinBtn').style.display = hasSeat || state.gameStarting ? 'none' : 'block';
-            document.getElementById('seatsLeaveBtn').style.display = hasSeat && !state.gameStarting ? 'block' : 'none';
+            $('seatsJoinBtn').style.display = hasSeat || state.gameStarting ? 'none' : 'block';
+            $('seatsLeaveBtn').style.display = hasSeat && !state.gameStarting ? 'block' : 'none';
         }
 
         function updateSeatsUI(data) {
@@ -2122,10 +2742,30 @@
             if (room) {
                 room.players = data.players || [];
                 room.playersCount = data.count || 0;
-                document.getElementById('seatsRoomInfo').textContent =
+                $('seatsRoomInfo').textContent =
                     `سعر المقعد: ${room.seatPrice || 1}$ | ${room.playersCount || 0}/${room.maxSeats || 8} لاعبين`;
                 renderSeats(room);
             }
+        }
+
+        function renderLeaderboard(players) {
+            const container = $('leaderboardList');
+            if (!players || players.length === 0) {
+                container.innerHTML = '<div class="text-muted text-center">لا يوجد لاعبين بعد</div>';
+                return;
+            }
+
+            container.innerHTML = players.slice(0, 20).map((p, i) => {
+                const rankClass = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : '';
+                return `
+                    <div class="lb-item ${rankClass}">
+                        <span class="rank">#${i + 1}</span>
+                        <span class="name">${p.username || 'لاعب'}</span>
+                        <span class="kills">💀 ${p.kills || 0}</span>
+                        <span class="elo">⭐ ${p.elo || 1000}</span>
+                    </div>
+                `;
+            }).join('');
         }
 
         // ============================================
@@ -2139,28 +2779,30 @@
             state.gameRound = data.gameRound || 1;
             state.playerId = data.yourId;
 
-            document.getElementById('gameOverlay').classList.add('active');
-            document.getElementById('gPlayerName').textContent = state.user?.username || 'اللاعب';
-            document.getElementById('gBalance').textContent = state.balance;
-            document.getElementById('aliveCount').textContent = state.aliveCount;
-            document.getElementById('killCount').textContent = '0';
-            document.getElementById('gameRound').textContent = state.gameRound;
-            document.getElementById('healthBar').style.width = '100%';
-            document.getElementById('healthText').textContent = '100';
+            screens.game.classList.add('active');
+            $('gPlayerName').textContent = state.user?.username || 'اللاعب';
+            $('gBalance').textContent = state.balance;
+            $('aliveCount').textContent = state.aliveCount;
+            $('killCount').textContent = '0';
+            $('gameRound').textContent = state.gameRound;
+            $('healthBar').style.width = '100%';
+            $('healthText').textContent = '100';
 
-            if (gameScene) { gameScene.destroy(); }
+            if (gameScene) {
+                gameScene.destroy();
+            }
             gameScene = new GameScene();
             gameScene.init();
-            gameScene.playerId = state.playerId;
+            gameScene.playerId = state.userId;
 
             const myPos = data.position || { x: 0, z: 0 };
             const myColor = 0x4a8b6a;
-            gameScene.playerTank = gameScene.createTank(myColor, myPos.x, myPos.z, state.playerId);
-            gameScene.tanks.set(state.playerId, gameScene.playerTank);
+            gameScene.playerTank = gameScene.createTank(myColor, myPos.x, myPos.z, state.userId);
+            gameScene.tanks.set(state.userId, gameScene.playerTank);
 
             if (data.players) {
                 data.players.forEach(p => {
-                    if (p.userId !== state.playerId) {
+                    if (p.userId !== state.userId) {
                         const colors = [0x8b5a2b, 0x6a4a8b, 0x8b2b3a, 0x2b6a8b, 0x8b6a2b];
                         const color = colors[Math.floor(Math.random() * colors.length)];
                         const pos = p.position || { x: 0, z: 0 };
@@ -2181,16 +2823,22 @@
             state.roomJoined = false;
             state.isInSeatsScreen = false;
             state.gameStarting = false;
-            if (gameScene) { gameScene.destroy();
-                gameScene = null; }
-            if (moveInterval) { clearInterval(moveInterval);
-                moveInterval = null; }
-            document.getElementById('gameOverlay').classList.remove('active');
-            document.getElementById('eliminationOverlay').classList.remove('active');
-            document.getElementById('reportOverlay').classList.remove('active');
+            if (gameScene) {
+                gameScene.destroy();
+                gameScene = null;
+            }
+            if (moveInterval) {
+                clearInterval(moveInterval);
+                moveInterval = null;
+            }
+            screens.game.classList.remove('active');
+            screens.elimination.classList.remove('active');
+            screens.report.classList.remove('active');
             showScreen('mainScreen');
-            if (socket) { socket.emit('leave_room');
-                socket.emit('list_rooms'); }
+            if (socket) {
+                socket.emit('leave_room');
+                socket.emit('list_rooms');
+            }
         }
 
         function leaveRoom() {
@@ -2207,8 +2855,8 @@
         // CONTROLS
         // ============================================
         function setupControls() {
-            const base = document.getElementById('joystickBase');
-            const handle = document.getElementById('joystickHandle');
+            const base = $('joystickBase');
+            const handle = $('joystickHandle');
 
             const startJoy = (e) => {
                 e.preventDefault();
@@ -2253,8 +2901,10 @@
                 joystickActive = false;
                 handle.style.transform = 'translate(-50%, -50%)';
                 joystickData = { x: 0, y: 0 };
-                if (moveInterval) { clearInterval(moveInterval);
-                    moveInterval = null; }
+                if (moveInterval) {
+                    clearInterval(moveInterval);
+                    moveInterval = null;
+                }
             };
 
             base.addEventListener('touchstart', startJoy, { passive: false });
@@ -2264,7 +2914,7 @@
             document.addEventListener('touchend', endJoy);
             document.addEventListener('mouseup', endJoy);
 
-            const fireBtn = document.getElementById('fireBtn');
+            const fireBtn = $('fireBtn');
             let lastFire = 0;
             const cd = 2000;
 
@@ -2284,17 +2934,21 @@
                         position: { x: pos.x, y: 0, z: pos.z },
                         direction: { x: dir.x, y: 0, z: dir.z }
                     });
-                    const ct = document.getElementById('cooldownText');
+                    const ct = $('cooldownText');
                     ct.textContent = '⏱️';
                     ct.style.opacity = '1';
-                    setTimeout(() => { ct.textContent = '🔥';
-                        setTimeout(() => ct.style.opacity = '0', 400); }, cd - 400);
+                    setTimeout(() => {
+                        ct.textContent = '🔥';
+                        setTimeout(() => ct.style.opacity = '0', 400);
+                    }, cd - 400);
                 }
             };
 
             fireBtn.addEventListener('click', fire);
-            fireBtn.addEventListener('touchstart', (e) => { e.preventDefault();
-                fire(); }, { passive: false });
+            fireBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                fire();
+            }, { passive: false });
         }
 
         // ============================================
@@ -2318,7 +2972,7 @@
             }
 
             init() {
-                const canvas = document.getElementById('gameCanvas');
+                const canvas = $('gameCanvas');
                 this.scene = new THREE.Scene();
                 this.scene.background = new THREE.Color(0x1a2a3a);
                 this.scene.fog = new THREE.FogExp2(0x1a2a3a, 0.0018);
@@ -2436,7 +3090,7 @@
                 group.position.set(x, 0, z);
                 group.userData = { health: 100, playerId };
 
-                if (playerId === state.user?.userId) {
+                if (playerId === state.userId) {
                     const ind = new THREE.Mesh(
                         new THREE.CircleGeometry(0.8, 16),
                         new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.3 })
@@ -2564,8 +3218,10 @@
 
             destroy() {
                 this.gameActive = false;
-                if (this.animationId) { cancelAnimationFrame(this.animationId);
-                    this.animationId = null; }
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                    this.animationId = null;
+                }
                 if (this.renderer) this.renderer.dispose();
                 this.tanks.clear();
                 this.bullets = [];
@@ -2575,10 +3231,10 @@
         }
 
         // ============================================
-        // ADMIN UI
+        // ADMIN
         // ============================================
         function loadAdminPanel() {
-            if (!state.isAdmin) { showToast('⚠️ غير مصرح', 'error'); return; }
+            if (!state.adminLoggedIn) return;
             showToast('🔄 جاري تحميل لوحة التحكم...', 'info');
             socket.emit('admin_command', { command: 'get_config' });
             socket.emit('admin_command', { command: 'get_visual_settings' });
@@ -2586,7 +3242,7 @@
             socket.emit('admin_command', { command: 'get_stats' });
             socket.emit('admin_command', { command: 'get_database_health' });
 
-            const grid = document.getElementById('roomSettingsGrid');
+            const grid = $('roomSettingsGrid');
             grid.innerHTML = '';
             const types = ['beginner', 'advanced', 'pro'];
             const names = { beginner: '🟢 المبتدئين', advanced: '🟡 المتقدمين', pro: '🔴 المحترفين' };
@@ -2607,9 +3263,10 @@
                 grid.appendChild(d);
             });
 
-            const vGrid = document.getElementById('visualSettingsGrid');
+            const vGrid = $('visualSettingsGrid');
             vGrid.innerHTML = '';
             const events = [
+                { key: 'game_logo', label: '🎮 شعار اللعبة' },
                 { key: 'elimination', label: '💀 إقصاء' },
                 { key: 'kill', label: '🔫 قتل' },
                 { key: 'winner', label: '🏆 فائز' },
@@ -2631,14 +3288,14 @@
 
         function updateAdminUI(config) {
             if (!config) return;
-            const ac = document.getElementById('anticheatToggle');
-            const acLabel = document.getElementById('anticheatLabel');
+            const ac = $('anticheatToggle');
+            const acLabel = $('anticheatLabel');
             const en = config.system?.antiCheatEnabled !== false;
             ac.classList.toggle('active', en);
             acLabel.textContent = en ? 'مفعل' : 'معطل';
 
-            const mt = document.getElementById('maintenanceToggle');
-            const mtLabel = document.getElementById('maintenanceLabel');
+            const mt = $('maintenanceToggle');
+            const mtLabel = $('maintenanceLabel');
             const maint = config.system?.maintenanceMode || false;
             mt.classList.toggle('active', maint);
             mtLabel.textContent = maint ? 'مفعل' : 'معطل';
@@ -2667,67 +3324,118 @@
         }
 
         // ============================================
+        // FETCH USER DATA
+        // ============================================
+        async function fetchUserData(userId) {
+            try {
+                const response = await fetch(`${CONFIG.SERVER_URL}/api/user/${userId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        updateStatsUI(data.user);
+                        updateProfileUI(data.user);
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching user data:', error);
+            }
+        }
+
+        // ============================================
         // UI EVENT LISTENERS
         // ============================================
         function setupUIListeners() {
-            // Auth - only Telegram
-            document.getElementById('telegramBtn').addEventListener('click', () => {
-                const id = prompt('أدخل معرف تيليغرام الخاص بك (Telegram ID):');
-                if (id && id.trim()) {
-                    const url = new URL(window.location);
-                    url.searchParams.set('user_id', id.trim());
-                    url.searchParams.set('username', 'مستخدم_' + id.trim().slice(0, 6));
-                    window.history.replaceState({}, '', url);
-                    showToast('🔄 جاري تسجيل الدخول...', 'info');
-                    authenticate();
-                } else {
-                    showToast('⚠️ يرجى إدخال معرف صحيح', 'warning');
+            // ---- AUTH ----
+            $('authLoginBtn').addEventListener('click', () => {
+                const userId = $('authUserId').value.trim();
+                if (!userId) {
+                    showToast('⚠️ يرجى إدخال معرف المستخدم', 'warning');
+                    return;
+                }
+                // تحديث الرابط
+                const url = new URL(window.location);
+                url.searchParams.set('user_id', userId);
+                window.history.replaceState({}, '', url);
+                showLoading(true);
+                authenticate(userId);
+            });
+
+            $('authUserId').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    $('authLoginBtn').click();
                 }
             });
 
-            document.getElementById('playBtn').addEventListener('click', () => {
-                if (!state.user) { showToast('⚠️ يرجى تسجيل الدخول', 'warning'); return; }
-                if (!socket) { showToast('⚠️ لا يوجد اتصال', 'error'); return; }
+            // ---- NAVIGATION ----
+            document.querySelectorAll('.bottom-nav .nav-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const screenId = item.dataset.screen;
+                    if (screenId === 'adminPanel') {
+                        if (!state.isAdmin) {
+                            showToast('⚠️ غير مصرح لك', 'error');
+                            return;
+                        }
+                        screens.admin.classList.add('active');
+                        if (!state.adminLoggedIn) {
+                            $('adminContent').style.display = 'none';
+                            $('adminLoginStatus').textContent = '🔑 أدخل كلمة المرور للدخول';
+                            $('adminLoginStatus').style.color = 'var(--text-muted)';
+                        }
+                        return;
+                    }
+                    if (screenId === 'lobbyScreen') {
+                        if (!state.userId) {
+                            showToast('⚠️ يرجى تسجيل الدخول', 'warning');
+                            return;
+                        }
+                        socket.emit('join_lobby');
+                        socket.emit('list_rooms');
+                    }
+                    if (screenId === 'statsScreen') {
+                        if (state.userId) {
+                            socket.emit('get_stats');
+                            socket.emit('get_leaderboard');
+                        }
+                    }
+                    showScreen(screenId);
+                });
+            });
+
+            // ---- MAIN ----
+            $('playBtn').addEventListener('click', () => {
+                if (!state.userId) {
+                    showToast('⚠️ يرجى تسجيل الدخول', 'warning');
+                    showScreen('authScreen');
+                    return;
+                }
+                if (!socket || !socket.connected) {
+                    showToast('⚠️ لا يوجد اتصال بالخادم', 'error');
+                    connectSocket().then(() => {
+                        authenticate(state.userId);
+                    }).catch(() => {
+                        showToast('❌ فشل الاتصال بالخادم', 'error');
+                    });
+                    return;
+                }
                 showScreen('lobbyScreen');
                 socket.emit('join_lobby');
                 socket.emit('list_rooms');
             });
 
-            document.getElementById('backFromLobby').addEventListener('click', () => {
-                if (state.roomId) socket.emit('leave_room');
-                showScreen('mainScreen');
-            });
-
-            document.getElementById('walletBtn').addEventListener('click', () => {
-                showToast(`💰 رصيدك: ${state.balance}$`, 'info');
-            });
-
-            document.getElementById('leaderboardBtn').addEventListener('click', () => {
-                if (socket) socket.emit('get_leaderboard');
-                showToast('🏆 جاري تحميل المتصدرين...', 'info');
-            });
-
-            document.getElementById('adminBtn').addEventListener('click', () => {
-                if (!state.isAdmin) { showToast('⚠️ غير مصرح', 'error'); return; }
-                document.getElementById('adminPanel').classList.add('active');
-                loadAdminPanel();
-            });
-
-            document.getElementById('closeAdmin').addEventListener('click', () => {
-                document.getElementById('adminPanel').classList.remove('active');
-            });
-
-            // Seats screen buttons
-            document.getElementById('seatsJoinBtn').addEventListener('click', () => {
-                if (state.gameStarting) { showToast('⏳ الجولة تبدأ، لا يمكن حجز مقعد', 'warning'); return; }
+            // ---- SEATS ----
+            $('seatsJoinBtn').addEventListener('click', () => {
+                if (state.gameStarting) {
+                    showToast('⏳ الجولة تبدأ، لا يمكن حجز مقعد', 'warning');
+                    return;
+                }
                 if (socket && state.roomId) {
                     socket.emit('join_room', { roomId: state.roomId });
                 }
             });
 
-            document.getElementById('seatsLeaveBtn').addEventListener('click', leaveRoom);
+            $('seatsLeaveBtn').addEventListener('click', leaveRoom);
 
-            document.getElementById('seatsBackBtn').addEventListener('click', () => {
+            $('seatsBackBtn').addEventListener('click', () => {
                 if (state.roomId && !state.gameStarting) {
                     socket.emit('leave_room');
                 }
@@ -2736,35 +3444,58 @@
                 socket.emit('list_rooms');
             });
 
-            document.getElementById('playAgainBtn').addEventListener('click', () => {
-                document.getElementById('reportOverlay').classList.remove('active');
+            // ---- REPORT ----
+            $('playAgainBtn').addEventListener('click', () => {
+                screens.report.classList.remove('active');
                 state.isInSeatsScreen = false;
                 showScreen('lobbyScreen');
-                if (socket) { socket.emit('join_lobby');
-                    socket.emit('list_rooms'); }
+                if (socket) {
+                    socket.emit('join_lobby');
+                    socket.emit('list_rooms');
+                }
             });
 
-            document.getElementById('homeFromReportBtn').addEventListener('click', () => {
-                document.getElementById('reportOverlay').classList.remove('active');
+            $('homeFromReportBtn').addEventListener('click', () => {
+                screens.report.classList.remove('active');
                 exitGame();
             });
 
-            // Admin toggles
-            document.getElementById('maintenanceToggle').addEventListener('click', function() {
+            // ---- ADMIN ----
+            $('closeAdmin').addEventListener('click', () => {
+                screens.admin.classList.remove('active');
+            });
+
+            $('adminLoginBtn').addEventListener('click', () => {
+                const password = $('adminPasswordInput').value;
+                if (!password) {
+                    showToast('⚠️ أدخل كلمة المرور', 'warning');
+                    return;
+                }
+                if (socket) {
+                    socket.emit('admin_login', { password });
+                }
+            });
+
+            $('adminPasswordInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    $('adminLoginBtn').click();
+                }
+            });
+
+            // ---- ADMIN TOGGLES ----
+            $('maintenanceToggle').addEventListener('click', function() {
                 this.classList.toggle('active');
-                document.getElementById('maintenanceLabel').textContent = this.classList.contains('active') ? 'مفعل' :
-                'معطل';
+                $('maintenanceLabel').textContent = this.classList.contains('active') ? 'مفعل' : 'معطل';
                 if (socket) socket.emit('admin_command', { command: 'toggle_maintenance' });
             });
 
-            document.getElementById('anticheatToggle').addEventListener('click', function() {
+            $('anticheatToggle').addEventListener('click', function() {
                 this.classList.toggle('active');
-                document.getElementById('anticheatLabel').textContent = this.classList.contains('active') ? 'مفعل' :
-                'معطل';
+                $('anticheatLabel').textContent = this.classList.contains('active') ? 'مفعل' : 'معطل';
                 if (socket) socket.emit('admin_command', { command: 'toggle_anticheat' });
             });
 
-            // Room settings
+            // ---- ROOM SETTINGS ----
             document.querySelectorAll('.room-setting').forEach(inp => {
                 inp.addEventListener('change', function() {
                     const t = this.dataset.type,
@@ -2792,7 +3523,7 @@
                 });
             });
 
-            // Visual settings
+            // ---- VISUAL SETTINGS ----
             document.querySelectorAll('.visual-update-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const key = this.dataset.key;
@@ -2807,56 +3538,83 @@
                 });
             });
 
-            // Player management
-            document.getElementById('adminAddBalance').addEventListener('click', () => {
-                const uid = document.getElementById('adminTargetUserId').value;
-                const amt = parseFloat(document.getElementById('adminAmount').value);
-                if (!uid || isNaN(amt)) { showToast('⚠️ أدخل المعرف والمبلغ', 'warning'); return; }
-                if (socket) socket.emit('admin_command', { command: 'set_balance', params: { userId: uid, amount: amt,
-                        action: 'add' } });
+            // ---- PLAYER MANAGEMENT ----
+            $('adminAddBalance').addEventListener('click', () => {
+                const uid = $('adminTargetUserId').value;
+                const amt = parseFloat($('adminAmount').value);
+                if (!uid || isNaN(amt)) {
+                    showToast('⚠️ أدخل المعرف والمبلغ', 'warning');
+                    return;
+                }
+                if (socket) socket.emit('admin_command', {
+                    command: 'set_balance',
+                    params: { userId: uid, amount: amt, action: 'add' }
+                });
             });
 
-            document.getElementById('adminSubtractBalance').addEventListener('click', () => {
-                const uid = document.getElementById('adminTargetUserId').value;
-                const amt = parseFloat(document.getElementById('adminAmount').value);
-                if (!uid || isNaN(amt)) { showToast('⚠️ أدخل المعرف والمبلغ', 'warning'); return; }
-                if (socket) socket.emit('admin_command', { command: 'set_balance', params: { userId: uid, amount: amt,
-                        action: 'subtract' } });
+            $('adminSubtractBalance').addEventListener('click', () => {
+                const uid = $('adminTargetUserId').value;
+                const amt = parseFloat($('adminAmount').value);
+                if (!uid || isNaN(amt)) {
+                    showToast('⚠️ أدخل المعرف والمبلغ', 'warning');
+                    return;
+                }
+                if (socket) socket.emit('admin_command', {
+                    command: 'set_balance',
+                    params: { userId: uid, amount: amt, action: 'subtract' }
+                });
             });
 
-            document.getElementById('adminKickPlayer').addEventListener('click', () => {
-                const uid = document.getElementById('adminTargetUserId').value;
+            $('adminKickPlayer').addEventListener('click', () => {
+                const uid = $('adminTargetUserId').value;
                 if (!uid) { showToast('⚠️ أدخل المعرف', 'warning'); return; }
                 if (confirm(`طرد اللاعب ${uid}؟`)) {
-                    if (socket) socket.emit('admin_command', { command: 'kick_player', params: { userId: uid,
-                            reason: 'تم طردك بواسطة المدير' } });
+                    if (socket) socket.emit('admin_command', {
+                        command: 'kick_player',
+                        params: { userId: uid, reason: 'تم طردك بواسطة المدير' }
+                    });
                 }
             });
 
-            document.getElementById('adminBanPlayer').addEventListener('click', () => {
-                const uid = document.getElementById('adminTargetUserId').value;
+            $('adminBanPlayer').addEventListener('click', () => {
+                const uid = $('adminTargetUserId').value;
                 if (!uid) { showToast('⚠️ أدخل المعرف', 'warning'); return; }
                 if (confirm(`حظر اللاعب ${uid} نهائياً؟`)) {
-                    if (socket) socket.emit('admin_command', { command: 'ban_player', params: { userId: uid,
-                            duration: 24 * 60 * 60 * 1000, reason: 'تم حظرك بواسطة المدير' } });
+                    if (socket) socket.emit('admin_command', {
+                        command: 'ban_player',
+                        params: { userId: uid, duration: 24 * 60 * 60 * 1000, reason: 'تم حظرك بواسطة المدير' }
+                    });
                 }
             });
 
-            document.getElementById('adminRefreshStats').addEventListener('click', () => {
-                if (socket) { socket.emit('admin_command', { command: 'get_stats' });
-                    socket.emit('admin_command', { command: 'get_monitoring' });
-                    showToast('🔄 تحديث الإحصائيات...', 'info'); }
+            $('adminSetAdmin').addEventListener('click', () => {
+                const uid = $('adminTargetUserId').value;
+                if (!uid) { showToast('⚠️ أدخل المعرف', 'warning'); return; }
+                const isAdmin = confirm(`ترقية اللاعب ${uid} إلى مدير؟`)? 'true' : 'false';
+                if (socket) socket.emit('admin_command', {
+                    command: 'set_admin',
+                    params: { targetUserId: uid, isAdmin: isAdmin === 'true' }
+                });
             });
 
-            document.getElementById('adminDbHealth').addEventListener('click', () => {
+            // ---- STATS ----
+            $('adminRefreshStats').addEventListener('click', () => {
+                if (socket) {
+                    socket.emit('admin_command', { command: 'get_stats' });
+                    socket.emit('admin_command', { command: 'get_monitoring' });
+                    showToast('🔄 تحديث الإحصائيات...', 'info');
+                }
+            });
+
+            $('adminDbHealth').addEventListener('click', () => {
                 if (socket) socket.emit('admin_command', { command: 'get_database_health' });
             });
 
-            document.getElementById('adminForceReconnect').addEventListener('click', () => {
+            $('adminForceReconnect').addEventListener('click', () => {
                 if (socket) socket.emit('admin_command', { command: 'force_reconnect_db' });
             });
 
-            document.getElementById('adminResetConfig').addEventListener('click', () => {
+            $('adminResetConfig').addEventListener('click', () => {
                 if (confirm('إعادة تعيين جميع الإعدادات؟')) {
                     if (socket) socket.emit('admin_command', { command: 'reset_config' });
                 }
@@ -2864,44 +3622,42 @@
         }
 
         // ============================================
-        // PARTICLES
-        // ============================================
-        function createParticles() {
-            const container = document.getElementById('particles');
-            for (let i = 0; i < 40; i++) {
-                const p = document.createElement('div');
-                p.className = 'particle';
-                p.style.cssText = `
-                    width:${2+Math.random()*4}px; height:${2+Math.random()*4}px;
-                    left:${Math.random()*100}%; 
-                    animation-duration:${15+Math.random()*30}s;
-                    animation-delay:${Math.random()*20}s;
-                    opacity:${0.1+Math.random()*0.2};
-                `;
-                container.appendChild(p);
-            }
-        }
-
-        // ============================================
-        // INIT
+        // INIT APP
         // ============================================
         async function initApp() {
             try {
                 showLoading(true);
-                createParticles();
 
-                // Check server
-                try {
-                    const res = await fetch(CONFIG.SERVER_URL + '/health');
-                    if (res.ok) console.log('✅ Server health OK');
-                } catch (e) {
-                    console.warn('⚠️ Health check failed:', e.message);
+                // التحقق من وجود معرف في الرابط
+                const params = new URLSearchParams(window.location.search);
+                const userId = params.get('user_id');
+
+                if (userId) {
+                    $('authUserId').value = userId;
                 }
 
+                // تحميل معرف محفوظ
+                const savedId = localStorage.getItem('btUserId');
+                if (savedId && !userId) {
+                    $('authUserId').value = savedId;
+                }
+
+                // الاتصال بالخادم
                 await connectSocket();
                 setupSocketEvents();
                 setupUIListeners();
-                authenticate();
+
+                // إذا كان هناك معرف، حاول تسجيل الدخول تلقائياً
+                if (userId) {
+                    showLoading(true);
+                    authenticate(userId);
+                } else if (savedId) {
+                    showLoading(true);
+                    authenticate(savedId);
+                } else {
+                    showLoading(false);
+                    showScreen('authScreen');
+                }
 
             } catch (e) {
                 console.error('❌ Init error:', e);
@@ -2915,30 +3671,34 @@
         // START
         // ============================================
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('🚀 Starting Battle Tanks Royale v4.0.0');
+            console.log('🚀 Starting Battle Tanks Royale v5.0.0');
             initApp();
         });
 
-        // Orientation
+        // ---- ORIENTATION ----
         window.addEventListener('orientationchange', () => {
             const warn = document.getElementById('landscapeWarning');
-            if (document.getElementById('gameOverlay').classList.contains('active')) {
+            if (screens.game.classList.contains('active')) {
                 warn.style.display = (window.innerHeight > window.innerWidth) ? 'flex' : 'none';
             }
         });
 
-        // Network recovery
+        // ---- NETWORK RECOVERY ----
         window.addEventListener('online', () => {
             if (!socket || !socket.connected) {
                 showToast('🔄 تم استعادة الإنترنت، جاري إعادة الاتصال...', 'info');
-                connectSocket().then(() => { if (state.user) authenticate(); }).catch(() => showToast(
-                '❌ فشل إعادة الاتصال', 'error'));
+                connectSocket().then(() => {
+                    if (state.userId) authenticate(state.userId);
+                }).catch(() => showToast('❌ فشل إعادة الاتصال', 'error'));
             }
         });
 
         window.addEventListener('offline', () => {
             showToast('⚠️ انقطع الاتصال بالإنترنت', 'warning');
         });
+
+        console.log('🎮 Battle Tanks Royale v5.0.0 loaded successfully');
+        console.log('📡 Server:', CONFIG.SERVER_URL);
     </script>
 
 </body>
